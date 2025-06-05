@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/cni"
+	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	adminpolicybasedrouteclient "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/crd/adminpolicybasedroute/v1/apis/clientset/versioned/fake"
 	factorymocks "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/factory/mocks"
 	kubemocks "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/kube/mocks"
@@ -35,16 +36,16 @@ func genOVSAddPortCmd(hostIfaceName, ifaceID, mac, ip, sandboxID, podUID string)
 	if ip != "" {
 		ipAddrExtID = fmt.Sprintf("external_ids:ip_addresses=%s ", ip)
 	}
-	return fmt.Sprintf("ovs-vsctl --timeout=30 --may-exist add-port br-int %s other_config:transient=true "+
+	return fmt.Sprintf("ovs-vsctl --timeout=30 --may-exist add-port %s %s other_config:transient=true "+
 		"-- set interface %s external_ids:attached_mac=%s external_ids:iface-id=%s external_ids:iface-id-ver=%s "+
 		"%sexternal_ids:sandbox=%s external_ids:vf-netdev-name=%s "+
 		"-- --if-exists remove interface %s external_ids k8s.ovn.org/network "+
 		"-- --if-exists remove interface %s external_ids k8s.ovn.org/nad",
-		hostIfaceName, hostIfaceName, mac, ifaceID, podUID, ipAddrExtID, sandboxID, hostIfaceName, hostIfaceName, hostIfaceName)
+		config.GetBridgeName(), hostIfaceName, hostIfaceName, mac, ifaceID, podUID, ipAddrExtID, sandboxID, hostIfaceName, hostIfaceName, hostIfaceName)
 }
 
 func genOVSDelPortCmd(portName string) string {
-	return fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port br-int %s", portName)
+	return fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port %s %s", config.GetBridgeName(), portName)
 }
 
 func genOVSGetCmd(table, record, column, key string) string {
@@ -55,7 +56,7 @@ func genOVSGetCmd(table, record, column, key string) string {
 }
 
 func genOfctlDumpFlowsCmd(queryStr string) string {
-	return fmt.Sprintf("ovs-ofctl --timeout=10 --no-stats --strict dump-flows br-int %s", queryStr)
+	return fmt.Sprintf("ovs-ofctl --timeout=10 --no-stats --strict dump-flows %s %s", config.GetBridgeName(), queryStr)
 }
 
 func genIfaceID(podNamespace, podName string) string {
@@ -202,7 +203,7 @@ var _ = Describe("Node DPU tests", func() {
 
 			sriovnetOpsMock.On("GetPciFromNetDevice", vfRep).Return("0000:03:00.8", nil)
 			execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-				Cmd: genOVSGetCmd("bridge", "br-int", "datapath_type", ""),
+				Cmd: genOVSGetCmd("bridge", config.GetBridgeName(), "datapath_type", ""),
 			})
 			// set ovs CMD output
 			execMock.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -235,7 +236,7 @@ var _ = Describe("Node DPU tests", func() {
 			sriovnetOpsMock.On("GetPCIFromDeviceName", vfRep).Return(vfPciAddress, nil)
 			sriovnetOpsMock.On("GetPciFromNetDevice", vfRep).Return("0000:03:00.8", nil)
 			execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-				Cmd: genOVSGetCmd("bridge", "br-int", "datapath_type", ""),
+				Cmd: genOVSGetCmd("bridge", config.GetBridgeName(), "datapath_type", ""),
 			})
 			// set ovs CMD output
 			execMock.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -272,7 +273,7 @@ var _ = Describe("Node DPU tests", func() {
 				sriovnetOpsMock.On("GetVfRepresentorDPU", "0", "9").Return(vfRep, nil)
 				sriovnetOpsMock.On("GetPCIFromDeviceName", vfRep).Return(vfPciAddress, nil)
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: genOVSGetCmd("bridge", "br-int", "datapath_type", ""),
+					Cmd: genOVSGetCmd("bridge", config.GetBridgeName(), "datapath_type", ""),
 				})
 				// set ovs CMD output so cni.ConfigureOVS passes without error
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -442,7 +443,7 @@ var _ = Describe("Node DPU tests", func() {
 			netlinkOpsMock.On("LinkByName", vfRep).Return(vfLink, nil)
 			netlinkOpsMock.On("LinkSetDown", vfLink).Return(nil)
 			execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-				Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port br-int %s", "pf0vf9"),
+				Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port %s %s", config.GetBridgeName(), "pf0vf9"),
 			})
 			err := dnnc.delRepPort(&pod, &scd, vfRep, types.DefaultNetworkName)
 			Expect(err).ToNot(HaveOccurred())

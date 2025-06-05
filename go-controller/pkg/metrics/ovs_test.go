@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 
+	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/metrics/mocks"
 
 	"github.com/onsi/ginkgo"
@@ -33,8 +34,11 @@ func (c *fakeOVSClient) FakeCall(args ...string) (string, string, error) {
 
 const (
 	ovsAppctlDumpAggregateSampleOutput = "NXST_AGGREGATE reply (xid=0x4): packet_count=856244 byte_count=3464651294 flow_count=30"
-	ovsVsctlListBridgeOutput           = "br-int,porta portb portc\nbr-ex,portd porte"
 	ovsVsctlListInterfaceOutput        = "1,collisions=10 rx_bytes=0 rx_crc_err=0 rx_dropped=5 rx_errors=100 rx_frame_err=0 rx_missed_errors=0 rx_over_err=0 rx_packets=0 tx_bytes=0 tx_dropped=50 tx_errors=20 tx_packets=0\n1,rx_bytes=0 rx_packets=1000 tx_bytes=0 tx_packets=80\n0,collisions=10 rx_bytes=0 rx_crc_err=0 rx_dropped=5 rx_errors=100 rx_frame_err=0 rx_missed_errors=0 rx_over_err=0 rx_packets=0 tx_bytes=0 tx_dropped=50 tx_errors=20 tx_packets=0"
+)
+
+var (
+	ovsVsctlListBridgeOutput = fmt.Sprintf("%s,porta portb portc\nbr-ex,portd porte", config.GetBridgeName())
 )
 
 var _ = ginkgo.Describe("OVS metrics", func() {

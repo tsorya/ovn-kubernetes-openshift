@@ -212,7 +212,8 @@ func testManagementPort(ctx *cli.Context, fexec *ovntest.FakeExec, testNS ns.Net
 		Output: "internal," + mgtPort + "_0",
 	})
 	fexec.AddFakeCmdsNoOutputNoError([]string{
-		"ovs-vsctl --timeout=15 -- --if-exists del-port br-int " + legacyMgtPort + " -- --may-exist add-port br-int " + mgtPort + " -- set interface " + mgtPort + " type=internal mtu_request=" + mtu + " external-ids:iface-id=" + legacyMgtPort,
+		fmt.Sprintf("ovs-vsctl --timeout=15 -- --if-exists del-port %s %s -- --may-exist add-port %s %s -- set interface %s type=internal mtu_request=%s external-ids:iface-id=%s",
+			config.GetBridgeName(), legacyMgtPort, config.GetBridgeName(), mgtPort, mgtPort, mtu, legacyMgtPort),
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
 		Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface " + mgtPort + " mac_in_use",
@@ -235,7 +236,7 @@ func testManagementPort(ctx *cli.Context, fexec *ovntest.FakeExec, testNS ns.Net
 		Output: "1",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-ofctl --no-stats --no-names dump-flows br-int table=65,out_port=1",
+		Cmd:    fmt.Sprintf("ovs-ofctl --no-stats --no-names dump-flows %s table=65,out_port=1", config.GetBridgeName()),
 		Output: " table=65, priority=100,reg15=0x2,metadata=0x2 actions=output:1",
 	})
 
@@ -327,15 +328,13 @@ func testManagementPortDPU(ctx *cli.Context, fexec *ovntest.FakeExec, testNS ns.
 
 	// OVS cmd setup
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 --if-exists get bridge br-int datapath_type",
+		Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists get bridge %s datapath_type", config.GetBridgeName()),
 		Output: "",
 	})
 
 	fexec.AddFakeCmdsNoOutputNoError([]string{
-		"ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgtPort,
-		fmt.Sprintf("ovs-vsctl --timeout=15 -- --may-exist add-port br-int %s -- set interface %s "+
-			"external-ids:iface-id=%s external-ids:ovn-orig-mgmt-port-rep-name=%s",
-			mgtPort, mgtPort, "k8s-"+nodeName, mgmtPortNetdev),
+		fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgtPort),
+		fmt.Sprintf("ovs-vsctl --timeout=15 -- --may-exist add-port %s %s -- set interface %s external-ids:iface-id=%s external-ids:ovn-orig-mgmt-port-rep-name=%s", config.GetBridgeName(), mgtPort, mgtPort, "k8s-"+nodeName, mgmtPortNetdev),
 	})
 
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -343,7 +342,7 @@ func testManagementPortDPU(ctx *cli.Context, fexec *ovntest.FakeExec, testNS ns.
 		Output: "1",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-ofctl --no-stats --no-names dump-flows br-int table=65,out_port=1",
+		Cmd:    fmt.Sprintf("ovs-ofctl --no-stats --no-names dump-flows %s table=65,out_port=1", config.GetBridgeName()),
 		Output: " table=65, priority=100,reg15=0x2,metadata=0x2 actions=output:1",
 	})
 
@@ -433,7 +432,7 @@ func testManagementPortDPUHost(ctx *cli.Context, fexec *ovntest.FakeExec, testNS
 
 	// OVS cmd setup
 	fexec.AddFakeCmdsNoOutputNoError([]string{
-		"ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgtPort,
+		fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgtPort),
 	})
 
 	for _, cfg := range configs {
@@ -537,7 +536,7 @@ var _ = Describe("Management Port Operations", func() {
 		Context("Syncing netdevice interface", func() {
 			It("Fails to lookup netdevice link", func() {
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 				})
 				netlinkOpsMock.On("LinkByName", mgmtPortName).Return(nil, netlinkMockErr)
 				netlinkOpsMock.On("IsLinkNotFoundError", mock.Anything).Return(false)
@@ -548,7 +547,7 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Fails to teardown IP configuration", func() {
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 				})
 				netlinkOpsMock.On("LinkByName", mgmtPortName).Return(linkMock, nil)
 				netlinkOpsMock.On("AddrList", linkMock, netlink.FAMILY_ALL).Return([]netlink.Addr{}, netlinkMockErr)
@@ -560,7 +559,7 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Fails to set netdevice link down", func() {
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 				})
 				netlinkOpsMock.On("LinkByName", mgmtPortName).Return(linkMock, nil)
 				netlinkOpsMock.On("AddrList", linkMock, netlink.FAMILY_ALL).Return([]netlink.Addr{}, nil)
@@ -573,7 +572,7 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Fails to rename netdevice link", func() {
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 				})
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
 					Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external-ids:ovn-orig-mgmt-port-netdev-name",
@@ -590,7 +589,7 @@ var _ = Describe("Management Port Operations", func() {
 			})
 			It("Unconfigures old management port netdevice", func() {
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 				})
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
 					Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external-ids:ovn-orig-mgmt-port-netdev-name",
@@ -610,7 +609,7 @@ var _ = Describe("Management Port Operations", func() {
 		Context("Syncing when old management port is OVS internal port", func() {
 			It("Internal port found, but new one supposed to be an internal port", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "internal," + mgmtPortName,
 				})
 
@@ -619,11 +618,11 @@ var _ = Describe("Management Port Operations", func() {
 			})
 			It("Fails to remove port from the bridge", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "internal," + mgmtPortName,
 				})
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: "ovs-vsctl --timeout=15 del-port br-int " + mgmtPortName,
+					Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 del-port %s %s", config.GetBridgeName(), mgmtPortName),
 					Err: fakeExecErr,
 				})
 
@@ -633,11 +632,11 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Removes internal port from the bridge", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "internal," + mgmtPortName,
 				})
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 del-port br-int " + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 del-port %s %s", config.GetBridgeName(), mgmtPortName),
 				})
 
 				err := syncMgmtPortInterface(hostSubnets, mgmtPortName, false)
@@ -648,14 +647,14 @@ var _ = Describe("Management Port Operations", func() {
 		Context("Syncing representor interface", func() {
 			It("Fails to delete representor from the bridge", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "," + mgmtPortName,
 				})
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --if-exists get Interface " + mgmtPortName + " external-ids:ovn-orig-mgmt-port-rep-name",
+					fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists get Interface %s external-ids:ovn-orig-mgmt-port-rep-name", mgmtPortName),
 				})
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: "ovs-vsctl --timeout=15 --if-exists del-port br-int " + mgmtPortName,
+					Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port %s %s", config.GetBridgeName(), mgmtPortName),
 					Err: fakeExecErr,
 				})
 
@@ -665,15 +664,15 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Fails to get representor original name and fallback to generic one", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "," + mgmtPortName,
 				})
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: "ovs-vsctl --timeout=15 --if-exists get Interface " + mgmtPortName + " external-ids:ovn-orig-mgmt-port-rep-name",
+					Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists get Interface %s external-ids:ovn-orig-mgmt-port-rep-name", mgmtPortName),
 					Err: fakeExecErr,
 				})
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --if-exists del-port br-int " + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port %s %s", config.GetBridgeName(), mgmtPortName),
 				})
 
 				// Return error here, so we know that function didn't returned earlier
@@ -684,12 +683,12 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Fails to get representor link", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "," + mgmtPortName,
 				})
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --if-exists get Interface " + mgmtPortName + " external-ids:ovn-orig-mgmt-port-rep-name",
-					"ovs-vsctl --timeout=15 --if-exists del-port br-int " + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists get Interface %s external-ids:ovn-orig-mgmt-port-rep-name", mgmtPortName),
+					fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port %s %s", config.GetBridgeName(), mgmtPortName),
 				})
 				netlinkOpsMock.On("LinkByName", mgmtPortName).Return(nil, netlinkMockErr)
 
@@ -699,12 +698,12 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Fails to set representor link down", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "," + mgmtPortName,
 				})
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --if-exists get Interface " + mgmtPortName + " external-ids:ovn-orig-mgmt-port-rep-name",
-					"ovs-vsctl --timeout=15 --if-exists del-port br-int " + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists get Interface %s external-ids:ovn-orig-mgmt-port-rep-name", mgmtPortName),
+					fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port %s %s", config.GetBridgeName(), mgmtPortName),
 				})
 				netlinkOpsMock.On("LinkByName", mgmtPortName).Return(linkMock, nil)
 				netlinkOpsMock.On("LinkSetDown", linkMock).Return(netlinkMockErr)
@@ -715,15 +714,15 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Fails to rename representor link", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "," + mgmtPortName,
 				})
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --if-exists get Interface " + mgmtPortName + " external-ids:ovn-orig-mgmt-port-rep-name",
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists get Interface %s external-ids:ovn-orig-mgmt-port-rep-name", mgmtPortName),
 					Output: repName,
 				})
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --if-exists del-port br-int " + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port %s %s", config.GetBridgeName(), mgmtPortName),
 				})
 				netlinkOpsMock.On("LinkByName", mgmtPortName).Return(linkMock, nil)
 				netlinkOpsMock.On("LinkSetDown", linkMock).Return(nil)
@@ -735,15 +734,15 @@ var _ = Describe("Management Port Operations", func() {
 
 			It("Removes representor from the bridge", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=" + mgmtPortName,
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --no-headings --data bare --format csv --columns type,name find Interface name=%s", mgmtPortName),
 					Output: "," + mgmtPortName,
 				})
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd:    "ovs-vsctl --timeout=15 --if-exists get Interface " + mgmtPortName + " external-ids:ovn-orig-mgmt-port-rep-name",
+					Cmd:    fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists get Interface %s external-ids:ovn-orig-mgmt-port-rep-name", mgmtPortName),
 					Output: repName,
 				})
 				execMock.AddFakeCmdsNoOutputNoError([]string{
-					"ovs-vsctl --timeout=15 --if-exists del-port br-int " + mgmtPortName,
+					fmt.Sprintf("ovs-vsctl --timeout=15 --if-exists del-port %s %s", config.GetBridgeName(), mgmtPortName),
 				})
 				netlinkOpsMock.On("LinkByName", mgmtPortName).Return(linkMock, nil)
 				netlinkOpsMock.On("LinkSetDown", linkMock).Return(nil)

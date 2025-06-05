@@ -15,9 +15,9 @@ import (
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/kube"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/node/routemanager"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/types"
+	util "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
 	kapi "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	util "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
 )
 
 // bridgedGatewayNodeSetup enables forwarding on bridge interface, sets up the physical network name mappings for the bridge,
@@ -349,7 +349,7 @@ func (nc *DefaultNodeNetworkController) initGateway(subnets []*net.IPNet, nodeAn
 		if node, err = nc.Kube.GetNode(nc.name); err != nil {
 			return fmt.Errorf("error retrieving node %s: %v", nc.name, err)
 		}
-		nodeAddrStr, err := util.GetDpfNodeIfAddrAnnotation(node)//getDPUHostPrimaryIPAddresses(kubeNodeIP, ifAddrs)
+		nodeAddrStr, err := util.GetDpfNodeIfAddrAnnotation(node) //getDPUHostPrimaryIPAddresses(kubeNodeIP, ifAddrs)
 		if err != nil {
 			return err
 		}
@@ -453,7 +453,7 @@ func (nc *DefaultNodeNetworkController) initGatewayDPUHost(kubeNodeIP net.IP, no
 	var gwIntf, gatewayIntf string
 
 	// Force gateway interface to be the interface associated with kubeNodeIP
-	if (config.Gateway.Interface == "") {
+	if config.Gateway.Interface == "" {
 		gwIntf, err = getInterfaceByIP(kubeNodeIP)
 		if err != nil {
 			return err

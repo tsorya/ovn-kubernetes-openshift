@@ -89,13 +89,13 @@ func (mp *managementPort) Create(routeManager *routemanager.Controller, node *v1
 	// Create a OVS internal interface.
 	legacyMgmtIntfName := util.GetLegacyK8sMgmtIntfName(mp.nodeName)
 	stdout, stderr, err := util.RunOVSVsctl(
-		"--", "--if-exists", "del-port", "br-int", legacyMgmtIntfName,
-		"--", "--may-exist", "add-port", "br-int", types.K8sMgmtIntfName,
+		"--", "--if-exists", "del-port", config.Default.BridgeName, legacyMgmtIntfName,
+		"--", "--may-exist", "add-port", config.Default.BridgeName, types.K8sMgmtIntfName,
 		"--", "set", "interface", types.K8sMgmtIntfName,
 		"type=internal", "mtu_request="+fmt.Sprintf("%d", config.Default.MTU),
 		"external-ids:iface-id="+types.K8sPrefix+mp.nodeName)
 	if err != nil {
-		klog.Errorf("Failed to add port to br-int, stdout: %q, stderr: %q, error: %v", stdout, stderr, err)
+		klog.Errorf("Failed to add port to %s, stdout: %q, stderr: %q, error: %v", config.Default.BridgeName, stdout, stderr, err)
 		return nil, err
 	}
 	macAddress, err := util.GetOVSPortMACAddress(types.K8sMgmtIntfName)
@@ -153,7 +153,7 @@ func managementPortReady() (bool, error) {
 	// OpenFlow table 65 performs logical-to-physical translation. It matches the packet’s logical
 	// egress  port. Its actions output the packet to the port attached to the OVN integration bridge
 	// that represents that logical  port.
-	stdout, _, err := util.RunOVSOfctl("--no-stats", "--no-names", "dump-flows", "br-int",
+	stdout, _, err := util.RunOVSOfctl("--no-stats", "--no-names", "dump-flows", config.Default.BridgeName,
 		"table=65,out_port="+ofport)
 	if err != nil {
 		return false, nil

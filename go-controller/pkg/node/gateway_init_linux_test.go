@@ -128,7 +128,7 @@ func shareGatewayInterfaceTest(app *cli.App, testNS ns.NetNS,
 			Output: fmt.Sprintf("%t", hwOffload),
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_node1-to-br-int ofport",
+			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_node1-to-" + config.GetBridgeName() + " ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -167,7 +167,7 @@ func shareGatewayInterfaceTest(app *cli.App, testNS ns.NetNS,
 		})
 		// nodePortWatcher()
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_" + nodeName + "-to-br-int ofport",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_" + nodeName + "-to-" + config.GetBridgeName() + " ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -564,7 +564,7 @@ func shareGatewayInterfaceDPUTest(app *cli.App, testNS ns.NetNS,
 		})
 		// newGatewayOpenFlowManager
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-" + brphys + "_node1-to-br-int ofport",
+			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-" + brphys + "_node1-to-" + config.GetBridgeName() + " ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -604,7 +604,7 @@ func shareGatewayInterfaceDPUTest(app *cli.App, testNS ns.NetNS,
 		})
 		// nodePortWatcher()
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-" + brphys + "_" + nodeName + "-to-br-int ofport",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-" + brphys + "_" + nodeName + "-to-" + config.GetBridgeName() + " ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -811,7 +811,8 @@ func shareGatewayInterfaceDPUHostTest(app *cli.App, testNS ns.NetNS, uplinkName,
 		err = testNS.Do(func(ns.NetNS) error {
 			defer GinkgoRecover()
 
-			err := nc.initGatewayDPUHost(net.ParseIP(hostIP))
+			nodeAnnotator := kube.NewNodeAnnotator(&kube.Kube{KClient: kubeFakeClient}, nodeName)
+			err := nc.initGatewayDPUHost(net.ParseIP(hostIP), nodeAnnotator)
 			Expect(err).NotTo(HaveOccurred())
 
 			link, err := netlink.LinkByName(uplinkName)
@@ -987,7 +988,7 @@ OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0`
 			Output: "false",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_node1-to-br-int ofport",
+			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_node1-to-" + config.GetBridgeName() + " ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -1020,7 +1021,7 @@ OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0`
 			Output: ovsOFOutput,
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_" + nodeName + "-to-br-int ofport",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_" + nodeName + "-to-" + config.GetBridgeName() + " ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{

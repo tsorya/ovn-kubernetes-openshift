@@ -158,7 +158,7 @@ var _ = Describe("Healthcheck tests", func() {
 
 		Context("bridge does not have stale representor ports", func() {
 			It("does not remove any port from bridge", func() {
-				// ports in br-int
+				// ports in the OVS integration bridge
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
 					Cmd: genFindInterfaceWithSandboxCmd(),
 					Output: "pod-a-ifc,sandbox=123abcfaa iface-id=a-ns_a-pod iface-id-ver=pod-a-uuid-1 vf-netdev-name=blah\n" +

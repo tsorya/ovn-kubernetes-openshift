@@ -162,7 +162,7 @@ func GetExtPortName(bridgeID, nodeName string) string {
 // GetPatchPortName determines the name of the patch port on the external
 // bridge, which connects to br-int
 func GetPatchPortName(bridgeID, nodeName string) string {
-	return types.PatchPortPrefix + GetExtPortName(bridgeID, nodeName) + types.PatchPortSuffix
+	return types.PatchPortPrefix + GetExtPortName(bridgeID, nodeName) + types.PatchPortSuffix(config.Default.BridgeName)
 }
 
 // GetNodeInternalAddrs returns the first IPv4 and/or IPv6 InternalIP defined

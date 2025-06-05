@@ -34,7 +34,7 @@ import (
 func getCreationFakeOVSCommands(fexec *ovntest.FakeExec, mgtPort, mgtPortMAC, netName, nodeName string, mtu int) {
 	fexec.AddFakeCmdsNoOutputNoError([]string{
 		"ovs-vsctl --timeout=15" +
-			" -- --may-exist add-port br-int " + mgtPort +
+			" -- --may-exist add-port " + config.GetBridgeName() + " " + mgtPort +
 			" -- set interface " + mgtPort +
 			" type=internal mtu_request=" + fmt.Sprintf("%d", mtu) +
 			" external-ids:iface-id=" + types.K8sPrefix + netName + "_" + nodeName,
@@ -57,7 +57,7 @@ func getVRFCreationFakeOVSCommands(fexec *ovntest.FakeExec) {
 
 func getDeletionFakeOVSCommands(fexec *ovntest.FakeExec, mgtPort string) {
 	fexec.AddFakeCmdsNoOutputNoError([]string{
-		"ovs-vsctl --timeout=15 -- --if-exists del-port br-int " + mgtPort,
+		"ovs-vsctl --timeout=15 -- --if-exists del-port " + config.GetBridgeName() + " " + mgtPort,
 	})
 }
 
@@ -114,7 +114,7 @@ func setUpGatewayFakeOVSCommands(fexec *ovntest.FakeExec) {
 		Output: "false",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_worker1-to-br-int ofport",
+		Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_worker1-to-" + config.GetBridgeName() + " ofport",
 		Output: "5",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -146,7 +146,7 @@ func setUpGatewayFakeOVSCommands(fexec *ovntest.FakeExec) {
 		Output: "net.ipv4.conf.ovn-k8s-mp0.rp_filter = 2",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_worker1-to-br-int ofport",
+		Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_worker1-to-" + config.GetBridgeName() + " ofport",
 		Output: "5",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -161,7 +161,7 @@ func setUpGatewayFakeOVSCommands(fexec *ovntest.FakeExec) {
 func setUpUDNOpenflowManagerFakeOVSCommands(fexec *ovntest.FakeExec) {
 	// UDN patch port
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_bluenet_worker1-to-br-int ofport",
+		Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_bluenet_worker1-to-" + config.GetBridgeName() + " ofport",
 		Output: "15",
 	})
 }

@@ -287,11 +287,11 @@ var _ = Describe("Node", func() {
 						nodeIP, interval, ofintval, ofintval, nodeName),
 				})
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: "ovs-vsctl --timeout=15 -- clear bridge br-int netflow" +
+					Cmd: "ovs-vsctl --timeout=15 -- clear bridge " + config.GetBridgeName() + " netflow" +
 						" -- " +
-						"clear bridge br-int sflow" +
+						"clear bridge " + config.GetBridgeName() + " sflow" +
 						" -- " +
-						"clear bridge br-int ipfix",
+						"clear bridge " + config.GetBridgeName() + " ipfix",
 				})
 				err := util.SetExec(fexec)
 				Expect(err).NotTo(HaveOccurred())
@@ -394,11 +394,11 @@ var _ = Describe("Node", func() {
 						nodeIP, interval, ofintval, ofintval, nodeName),
 				})
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: "ovs-vsctl --timeout=15 -- clear bridge br-int netflow" +
+					Cmd: "ovs-vsctl --timeout=15 -- clear bridge " + config.GetBridgeName() + " netflow" +
 						" -- " +
-						"clear bridge br-int sflow" +
+						"clear bridge " + config.GetBridgeName() + " sflow" +
 						" -- " +
-						"clear bridge br-int ipfix",
+						"clear bridge " + config.GetBridgeName() + " ipfix",
 				})
 				err := util.SetExec(fexec)
 				Expect(err).NotTo(HaveOccurred())
@@ -462,11 +462,11 @@ var _ = Describe("Node", func() {
 				})
 
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: "ovs-vsctl --timeout=15 -- clear bridge br-int netflow" +
+					Cmd: "ovs-vsctl --timeout=15 -- clear bridge " + config.GetBridgeName() + " netflow" +
 						" -- " +
-						"clear bridge br-int sflow" +
+						"clear bridge " + config.GetBridgeName() + " sflow" +
 						" -- " +
-						"clear bridge br-int ipfix",
+						"clear bridge " + config.GetBridgeName() + " ipfix",
 				})
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
 					Cmd: fmt.Sprintf("ovs-vsctl --timeout=15"+
@@ -474,7 +474,7 @@ var _ = Describe("Node", func() {
 						"--id=@ipfix create ipfix "+
 						"targets=[\"%s:%d\"] cache_active_timeout=60 sampling=400"+
 						" -- "+
-						"set bridge br-int ipfix=@ipfix", ipfixIP, ipfixPort),
+						"set bridge %s ipfix=@ipfix", ipfixIP, ipfixPort, config.GetBridgeName()),
 				})
 				err := util.SetExec(fexec)
 				Expect(err).NotTo(HaveOccurred())
@@ -537,11 +537,11 @@ var _ = Describe("Node", func() {
 				})
 
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: "ovs-vsctl --timeout=15 -- clear bridge br-int netflow" +
+					Cmd: "ovs-vsctl --timeout=15 -- clear bridge " + config.GetBridgeName() + " netflow" +
 						" -- " +
-						"clear bridge br-int sflow" +
+						"clear bridge " + config.GetBridgeName() + " sflow" +
 						" -- " +
-						"clear bridge br-int ipfix",
+						"clear bridge " + config.GetBridgeName() + " ipfix",
 				})
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
 					Cmd: fmt.Sprintf("ovs-vsctl --timeout=15"+
@@ -549,7 +549,7 @@ var _ = Describe("Node", func() {
 						"--id=@ipfix create ipfix "+
 						"targets=[\"%s:%d\"] cache_active_timeout=123 cache_max_flows=456 sampling=789"+
 						" -- "+
-						"set bridge br-int ipfix=@ipfix", ipfixIP, ipfixPort),
+						"set bridge %s ipfix=@ipfix", ipfixIP, ipfixPort, config.GetBridgeName()),
 				})
 				err := util.SetExec(fexec)
 				Expect(err).NotTo(HaveOccurred())
@@ -612,11 +612,11 @@ var _ = Describe("Node", func() {
 				})
 
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: "ovs-vsctl --timeout=15 -- clear bridge br-int netflow" +
+					Cmd: "ovs-vsctl --timeout=15 -- clear bridge " + config.GetBridgeName() + " netflow" +
 						" -- " +
-						"clear bridge br-int sflow" +
+						"clear bridge " + config.GetBridgeName() + " sflow" +
 						" -- " +
-						"clear bridge br-int ipfix",
+						"clear bridge " + config.GetBridgeName() + " ipfix",
 				})
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
 					Cmd: "ovs-vsctl --timeout=15" +
@@ -625,7 +625,7 @@ var _ = Describe("Node", func() {
 						// verify that the 1.2.5.6 IP has been attached to the :8888 target below
 						`targets=["10.0.0.2:3030","1.2.5.6:8888","[2020:1111:f::1:933]:3333"] cache_active_timeout=60` +
 						" -- " +
-						"set bridge br-int ipfix=@ipfix",
+						"set bridge " + config.GetBridgeName() + " ipfix=@ipfix",
 				})
 				err := util.SetExec(fexec)
 				Expect(err).NotTo(HaveOccurred())

@@ -163,14 +163,14 @@ func (nc *DefaultNodeNetworkController) initRetryFrameworkForNode() {
 	nc.retryEndpointSlices = nc.newRetryFrameworkNode(factory.EndpointSliceForStaleConntrackRemovalType)
 }
 
-func clearOVSFlowTargets() error {
+func clearOVSFlowTargets(bridgeName string) error {
 	_, _, err := util.RunOVSVsctl(
 		"--",
-		"clear", "bridge", "br-int", "netflow",
+		"clear", "bridge", bridgeName, "netflow",
 		"--",
-		"clear", "bridge", "br-int", "sflow",
+		"clear", "bridge", bridgeName, "sflow",
 		"--",
-		"clear", "bridge", "br-int", "ipfix",
+		"clear", "bridge", bridgeName, "ipfix",
 	)
 	if err != nil {
 		return err
@@ -206,7 +206,7 @@ func collectorsString(node *kapi.Node, targets []config.HostPort) (string, error
 	return joined.String(), nil
 }
 
-func setOVSFlowTargets(node *kapi.Node) error {
+func setOVSFlowTargets(node *kapi.Node, bridgeName string) error {
 	if len(config.Monitoring.NetFlowTargets) != 0 {
 		collectors, err := collectorsString(node, config.Monitoring.NetFlowTargets)
 		if err != nil {
@@ -221,7 +221,7 @@ func setOVSFlowTargets(node *kapi.Node) error {
 			fmt.Sprintf("targets=[%s]", collectors),
 			"active_timeout=60",
 			"--",
-			"set", "bridge", "br-int", "netflow=@netflow",
+			"set", "bridge", bridgeName, "netflow=@netflow",
 		)
 		if err != nil {
 			return fmt.Errorf("error setting NetFlow: %v\n  %q", err, stderr)
@@ -241,7 +241,7 @@ func setOVSFlowTargets(node *kapi.Node) error {
 			"agent="+types.SFlowAgent,
 			fmt.Sprintf("targets=[%s]", collectors),
 			"--",
-			"set", "bridge", "br-int", "sflow=@sflow",
+			"set", "bridge", bridgeName, "sflow=@sflow",
 		)
 		if err != nil {
 			return fmt.Errorf("error setting SFlow: %v\n  %q", err, stderr)
@@ -267,7 +267,7 @@ func setOVSFlowTargets(node *kapi.Node) error {
 		if config.IPFIX.Sampling != 0 {
 			args = append(args, fmt.Sprintf("sampling=%d", config.IPFIX.Sampling))
 		}
-		args = append(args, "--", "set", "bridge", "br-int", "ipfix=@ipfix")
+		args = append(args, "--", "set", "bridge", bridgeName, "ipfix=@ipfix")
 		_, stderr, err := util.RunOVSVsctl(args...)
 		if err != nil {
 			return fmt.Errorf("error setting IPFIX: %v\n  %q", err, stderr)
@@ -339,13 +339,14 @@ func setupOVNNode(node *kapi.Node) error {
 		return fmt.Errorf("error setting OVS external IDs: %v\n  %q", err, stderr)
 	}
 
+	bridgeName := config.GetBridgeName()
 	// clear stale ovs flow targets if needed
-	err = clearOVSFlowTargets()
+	err = clearOVSFlowTargets(bridgeName)
 	if err != nil {
 		return fmt.Errorf("error clearing stale ovs flow targets: %q", err)
 	}
 	// set new ovs flow targets if needed
-	err = setOVSFlowTargets(node)
+	err = setOVSFlowTargets(node, bridgeName)
 	if err != nil {
 		return fmt.Errorf("error setting ovs flow targets: %q", err)
 	}
@@ -397,14 +398,15 @@ func isOVNControllerReady() (bool, error) {
 		return false, nil
 	}
 
-	// check whether br-int exists on node
-	_, _, err = util.RunOVSVsctl("--", "br-exists", "br-int")
+	// check whether bridge exists on node
+	bridgeName := config.GetBridgeName()
+	_, _, err = util.RunOVSVsctl("--", "br-exists", bridgeName)
 	if err != nil {
 		return false, nil
 	}
 
-	// check by dumping br-int flow entries
-	stdout, _, err := util.RunOVSOfctl("dump-aggregate", "br-int")
+	// check by dumping bridge flow entries
+	stdout, _, err := util.RunOVSOfctl("dump-aggregate", bridgeName)
 	if err != nil {
 		klog.V(5).Infof("Error dumping aggregate flows: %v", err)
 		return false, nil
@@ -713,7 +715,7 @@ func (nc *DefaultNodeNetworkController) Start(ctx context.Context) error {
 
 	if config.OvnKubeNode.Mode != types.NodeModeDPUHost {
 		// Bootstrap flows in OVS if just normal flow is present
-                if err := bootstrapOVSFlows(nc.name); err != nil {
+		if err := bootstrapOVSFlows(nc.name); err != nil {
 			return fmt.Errorf("failed to bootstrap OVS flows: %w", err)
 		}
 	}
@@ -1040,9 +1042,9 @@ func (nc *DefaultNodeNetworkController) Start(ctx context.Context) error {
 		if err != nil {
 			klog.Errorf("Deletion of bridge br-ext failed: %v (%v)", err, stderr)
 		}
-		_, stderr, err = util.RunOVSVsctl("--if-exists", "del-port", "br-int", "int")
+		_, stderr, err = util.RunOVSVsctl("--if-exists", "del-port", config.GetBridgeName(), "int")
 		if err != nil {
-			klog.Errorf("Deletion of port int on  br-int failed: %v (%v)", err, stderr)
+			klog.Errorf("Deletion of port int on %s failed: %v (%v)", config.GetBridgeName(), err, stderr)
 		}
 	}
 

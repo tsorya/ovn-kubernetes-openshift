@@ -361,7 +361,7 @@ func syncMgmtPortInterface(hostSubnets []*net.IPNet, mgmtPortName string, isExpe
 		}
 
 		klog.Infof("Found OVS internal port. Removing it")
-		_, stderr, err := util.RunOVSVsctl("del-port", "br-int", mgmtPortName)
+		_, stderr, err := util.RunOVSVsctl("del-port", config.GetBridgeName(), mgmtPortName)
 		if err != nil {
 			return fmt.Errorf("failed to remove OVS internal port: %s", stderr)
 		}
@@ -387,7 +387,7 @@ func unconfigureMgmtRepresentorPort(mgmtPortName string) error {
 		klog.Warningf("No saved management port representor name for %s, renaming to %s", mgmtPortName, savedName)
 	}
 
-	_, stderr, err = util.RunOVSVsctl("--if-exists", "del-port", "br-int", mgmtPortName)
+	_, stderr, err = util.RunOVSVsctl("--if-exists", "del-port", config.GetBridgeName(), mgmtPortName)
 	if err != nil {
 		return fmt.Errorf("failed to remove OVS port: %s", stderr)
 	}

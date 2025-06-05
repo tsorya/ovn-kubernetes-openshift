@@ -5,6 +5,7 @@ package util
 
 import (
 	"fmt"
+	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	"os"
 	"strings"
 	"syscall"
@@ -338,10 +339,10 @@ func BridgeToNic(bridge string) error {
 		}
 		// stdout has the peer interface, just delete it
 		peer := strings.TrimSpace(stdout)
-		_, stderr, err = RunOVSVsctl("--if-exists", "del-port", "br-int", peer)
+		_, stderr, err = RunOVSVsctl("--if-exists", "del-port", config.Default.BridgeName, peer)
 		if err != nil {
-			klog.Warningf("Failed to delete patch port %q on br-int, "+
-				"stderr: %q, error: %v", peer, stderr, err)
+			klog.Warningf("Failed to delete patch port %q on %s, "+
+				"stderr: %q, error: %v", peer, config.Default.BridgeName, stderr, err)
 		}
 	}
 

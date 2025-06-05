@@ -19,7 +19,7 @@ import (
 	utilerrors "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util/errors"
 )
 
-// Check if the Pod is ready so that we can add its associated DPU to br-int.
+// Check if the Pod is ready so that we can add its associated DPU to the integration bridge.
 // If true, return its dpuConnDetails, otherwise return nil
 func (bnnc *BaseNodeNetworkController) podReadyToAddDPU(pod *kapi.Pod, nadName string) *util.DPUConnectionDetails {
 	if bnnc.name != pod.Spec.NodeName {
@@ -256,7 +256,7 @@ func (bnnc *BaseNodeNetworkController) addRepPort(pod *kapi.Pod, dpuCD *util.DPU
 		_ = bnnc.delRepPort(pod, dpuCD, vfRepName, nadName)
 		return err
 	}
-	klog.Infof("Port %s added to bridge br-int", vfRepName)
+	klog.Infof("Port %s added to bridge %s", vfRepName, config.GetBridgeName())
 
 	link, err := util.GetNetLinkOps().LinkByName(vfRepName)
 	if err != nil {
@@ -315,13 +315,13 @@ func (bnnc *BaseNodeNetworkController) delRepPort(pod *kapi.Pod, dpuCD *util.DPU
 		}
 	}
 
-	// remove from br-int
+	// remove from configured bridge
 	return wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 60*time.Second, true, func(ctx context.Context) (bool, error) {
-		_, _, err := util.RunOVSVsctl("--if-exists", "del-port", "br-int", vfRepName)
+		_, _, err := util.RunOVSVsctl("--if-exists", "del-port", config.GetBridgeName(), vfRepName)
 		if err != nil {
 			return false, nil
 		}
-		klog.Infof("Port %s deleted from bridge br-int", vfRepName)
+		klog.Infof("Port %s deleted from bridge %s", vfRepName, config.GetBridgeName())
 		return true, nil
 	})
 }

@@ -66,13 +66,14 @@ var (
 		EncapIP:               "",
 		EncapPort:             DefaultEncapPort,
 		InactivityProbe:       100000, // in Milliseconds
-		OpenFlowProbe:         180,    // in Seconds
+		OpenFlowProbe:         0,      // in Milliseconds
 		OfctrlWaitBeforeClear: 0,      // in Milliseconds
 		MonitorAll:            true,
 		OVSDBTxnTimeout:       DefaultDBTxnTimeout,
 		LFlowCacheEnable:      true,
 		RawClusterSubnets:     "10.128.0.0/14/23",
 		Zone:                  types.OvnDefaultZone,
+		BridgeName:            "br-int", // Default OVS integration bridge name
 	}
 
 	// Logging holds logging-related parsed config file parameters and command-line overrides
@@ -230,8 +231,7 @@ type DefaultConfig struct {
 	// EncapType value defines the encapsulation protocol to use to transmit packets between
 	// hypervisors. By default the value is 'geneve'
 	EncapType string `gcfg:"encap-type"`
-	// The IP address of the encapsulation endpoint. If not specified, the IP address the
-	// NodeName resolves to will be used
+	// Configured IP address of the encapsulation endpoint.
 	EncapIP string `gcfg:"encap-ip"`
 	// The UDP Port of the encapsulation endpoint. If not specified, the IP default port
 	// of 6081 will be used
@@ -280,6 +280,8 @@ type DefaultConfig struct {
 
 	// Zone name to which ovnkube-node/ovnkube-controller belongs to
 	Zone string `gcfg:"zone"`
+	// BridgeName specifies the OVS integration bridge name
+	BridgeName string `gcfg:"bridge-name"`
 }
 
 // LoggingConfig holds logging-related parsed config file parameters and command-line overrides
@@ -917,6 +919,12 @@ var CommonFlags = []cli.Flag{
 		Value:       20,
 	},
 	&cli.StringFlag{
+		Name:        "bridge-name",
+		Usage:       "OVS integration bridge name (default: br-int)",
+		Value:       Default.BridgeName,
+		Destination: &cliConfig.Default.BridgeName,
+	},
+	&cli.StringFlag{
 		Name:        "zone",
 		Usage:       "zone name to which ovnkube-node/ovnkube-controller belongs to",
 		Value:       Default.Zone,
@@ -1250,7 +1258,7 @@ var MetricsFlags = []cli.Flag{
 	},
 }
 
-// OvnNBFlags capture OVN northbound database options
+// OVNDBFlags capture OVN northbound database options
 var OvnNBFlags = []cli.Flag{
 	&cli.StringFlag{
 		Name: "nb-address",
@@ -2660,4 +2668,13 @@ func buildOvnKubeNodeConfig(ctx *cli.Context, cli, file *config) error {
 		return fmt.Errorf("ovnkube-node-mgmt-port-netdev or ovnkube-node-mgmt-port-dp-resource-name must be provided")
 	}
 	return nil
+}
+
+// GetBridgeName returns the configured OVS integration bridge name.
+// Returns the configured bridge name from Default.BridgeName, or "br-int" as fallback.
+func GetBridgeName() string {
+	if Default.BridgeName != "" {
+		return Default.BridgeName
+	}
+	return "br-int"
 }

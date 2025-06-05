@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
+
 	ovntest "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/testing"
 	netlink_mocks "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/testing/mocks/github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink"
@@ -47,7 +49,7 @@ func TestGetNicName(t *testing.T) {
 			desc:      "test code path when `ovs-vsctl get Port port Interfaces` returns error",
 			errMatch:  fmt.Errorf("failed to get port"),
 			outputExp: "",
-			inpBrName: "testPortName",
+			inpBrName: config.GetBridgeName(),
 			onRetArgsExecIface: []ovntest.TestifyMockHelper{
 				{OnCallMethodName: "RunCmd", OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string", "string", "string", "string", "string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("port1\nport2")), bytes.NewBuffer([]byte("")), nil}},
 				{OnCallMethodName: "RunCmd", OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string", "string", "string", "string", "string", "string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), fmt.Errorf("mock error")}},
@@ -721,11 +723,25 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 4, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("eth0")), bytes.NewBuffer([]byte("")), nil}},
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("[080841d8-4e12-4003-b0ac-36fefd63bae1]")), bytes.NewBuffer([]byte("")), nil}},
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("system")), bytes.NewBuffer([]byte("")), nil}},
+				// Below row is for mocking the `stdout, stderr, err := RunOVSVsctl("list-ifaces", bridge)` code path
+				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 3, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("9d2bc35689fa975")), bytes.NewBuffer([]byte("")), nil}},
+				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "type")` code path
+				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("internal")), bytes.NewBuffer([]byte("")), nil}},
+				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
+				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), fmt.Errorf("mock error")}},
 			},
 			onRetArgsKexecIface: []ovntest.TestifyMockHelper{
 				//Below three entries are for mocking the `nicName, err := GetNicName(bridge)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
+				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
+				// Below row is for mocking the `stdout, stderr, err := RunOVSVsctl("list-ifaces", bridge)` code path
+				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 4, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
+				// Below rows are for mocking the three RunOVSVsctl executed inside the for loop that processes the interface list returned
+				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
+				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "type")` code path
+				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
+				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 			},
 			onRetArgsNetLinkLibOpers: []ovntest.TestifyMockHelper{
@@ -750,7 +766,6 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "Attrs", OnCallMethodArgType: []string{}, RetArgList: []interface{}{&netlink.LinkAttrs{Name: "testIfaceName"}}},
 				// Below two row entries are for mocking the `if err = saveRoute(bridgeLink, ifaceLink, routes); err != nil` code path.
 				//The delAddRoute function is indirectly invoked and needs mocking of Attrs() function.
-				{OnCallMethodName: "Attrs", OnCallMethodArgType: []string{}, RetArgList: []interface{}{&netlink.LinkAttrs{Name: "testIfaceName"}}},
 				{OnCallMethodName: "Attrs", OnCallMethodArgType: []string{}, RetArgList: []interface{}{&netlink.LinkAttrs{Name: "testIfaceName"}}},
 			},
 		},
@@ -825,6 +840,8 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 4, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below rows are for mocking the three RunOVSVsctl executed inside the for loop that processes the interface list returned
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
+				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "type")` code path
+				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 			},
@@ -877,6 +894,8 @@ func TestBridgeToNic(t *testing.T) {
 				// Below row is for mocking the `stdout, stderr, err := RunOVSVsctl("list-ifaces", bridge)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 4, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below rows are for mocking the three RunOVSVsctl executed inside the for loop that processes the interface list returned
+				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
+				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "type")` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
@@ -964,7 +983,7 @@ func TestBridgeToNic(t *testing.T) {
 			},
 		},
 		{
-			desc:      "failed to delete peer patch port on br-int",
+			desc:      "failed to delete peer patch port on " + config.Default.BridgeName,
 			inpBridge: "breth0",
 			errExp:    true,
 			onRetArgsExecUtilsIface: []ovntest.TestifyMockHelper{
@@ -978,7 +997,7 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("patch")), bytes.NewBuffer([]byte("")), nil}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "options:peer")` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), nil}},
-				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", "br-int", peer)` code path
+				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", config.Default.BridgeName, peer)` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), fmt.Errorf("mock error")}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), fmt.Errorf("mock error")}},
@@ -994,7 +1013,7 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "options:peer")` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
-				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", "br-int", peer)` code path
+				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", config.Default.BridgeName, peer)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
@@ -1039,7 +1058,7 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("patch")), bytes.NewBuffer([]byte("")), nil}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "options:peer")` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), nil}},
-				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", "br-int", peer)` code path
+				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", config.Default.BridgeName, peer)` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), nil}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), fmt.Errorf("mock error")}},
@@ -1055,7 +1074,7 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "options:peer")` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
-				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", "br-int", peer)` code path
+				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", config.Default.BridgeName, peer)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
@@ -1099,7 +1118,7 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("patch")), bytes.NewBuffer([]byte("")), nil}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "options:peer")` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), nil}},
-				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", "br-int", peer)` code path
+				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", config.Default.BridgeName, peer)` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), nil}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "RunCmd", OnCallMethodsArgsStrTypeAppendCount: 5, OnCallMethodArgType: []string{"*mocks.Cmd", "string", "[]string"}, RetArgList: []interface{}{bytes.NewBuffer([]byte("")), bytes.NewBuffer([]byte("")), nil}},
@@ -1115,7 +1134,7 @@ func TestBridgeToNic(t *testing.T) {
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("get", "interface", iface, "options:peer")` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
-				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", "br-int", peer)` code path
+				// Below row is for mocking the `_, stderr, err = RunOVSVsctl("--if-exists", "del-port", config.Default.BridgeName, peer)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},
 				// Below row is for mocking the `stdout, stderr, err = RunOVSVsctl("--", "--if-exists", "del-br", bridge)` code path
 				{OnCallMethodName: "Command", OnCallMethodsArgsStrTypeAppendCount: 6, OnCallMethodArgType: []string{}, RetArgList: []interface{}{mockCmd}},

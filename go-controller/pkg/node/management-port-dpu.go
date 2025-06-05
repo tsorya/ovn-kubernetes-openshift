@@ -39,9 +39,9 @@ func (mp *managementPortRepresentor) Create(_ *routemanager.Controller, node *v1
 		k8sMgmtIntfName += "_0"
 	}
 
-	br_type, err := util.GetDatapathType("br-int")
+	br_type, err := util.GetDatapathType(config.GetBridgeName())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get datapath type for bridge br-int : %v", err)
+		return nil, fmt.Errorf("failed to get datapath type for bridge %s : %v", config.GetBridgeName(), err)
 	}
 
 	klog.Infof("Lookup representor link and existing management port for '%v'", mp.repName)
@@ -57,7 +57,7 @@ func (mp *managementPortRepresentor) Create(_ *routemanager.Controller, node *v1
 		}
 	}
 
-	// configure management port: rename, set MTU and set link up and connect representor port to br-int
+	// configure management port: rename, set MTU and set link up and connect representor port to integration bridge
 	klog.Infof("Setup representor management port: %s", link.Attrs().Name)
 
 	setName := link.Attrs().Name != k8sMgmtIntfName
@@ -86,7 +86,7 @@ func (mp *managementPortRepresentor) Create(_ *routemanager.Controller, node *v1
 	}
 
 	ovsArgs := []string{
-		"--", "--may-exist", "add-port", "br-int", k8sMgmtIntfName,
+		"--", "--may-exist", "add-port", config.GetBridgeName(), k8sMgmtIntfName,
 		"--", "set", "interface", k8sMgmtIntfName,
 		"external-ids:iface-id=" + types.K8sPrefix + mp.nodeName,
 	}
@@ -103,8 +103,8 @@ func (mp *managementPortRepresentor) Create(_ *routemanager.Controller, node *v1
 	// Plug management port representor to OVS.
 	stdout, stderr, err := util.RunOVSVsctl(ovsArgs...)
 	if err != nil {
-		klog.Errorf("Failed to add port %q to br-int, stdout: %q, stderr: %q, error: %v",
-			k8sMgmtIntfName, stdout, stderr, err)
+		klog.Errorf("Failed to add port %q to %s, stdout: %q, stderr: %q, error: %v",
+			k8sMgmtIntfName, config.GetBridgeName(), stdout, stderr, err)
 		return nil, err
 	}
 

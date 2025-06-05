@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/klog/v2"
 
+	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -338,7 +339,7 @@ func getPortCount(portType string) float64 {
 	switch portType {
 	case "patch":
 		for _, portName := range portNames {
-			if strings.Contains(portName, "br-int") {
+			if strings.Contains(portName, config.GetBridgeName()) {
 				portCount++
 			}
 		}
@@ -433,10 +434,10 @@ func RegisterOvnControllerMetrics(stopChan <-chan struct{}) {
 			Name:      "integration_bridge_openflow_total",
 			Help:      "The total number of OpenFlow flows in the integration bridge.",
 		}, func() float64 {
-			stdout, stderr, err := util.RunOVSOfctl("-t", "5", "dump-aggregate", "br-int")
+			stdout, stderr, err := util.RunOVSOfctl("-t", "5", "dump-aggregate", config.GetBridgeName())
 			if err != nil {
-				klog.Errorf("Failed to get flow count for br-int, stderr(%s): (%v)",
-					stderr, err)
+				klog.Errorf("Failed to get flow count for %s, stderr(%s): (%v)",
+					config.GetBridgeName(), stderr, err)
 				return 0
 			}
 			for _, kvPair := range strings.Fields(stdout) {
@@ -453,7 +454,7 @@ func RegisterOvnControllerMetrics(stopChan <-chan struct{}) {
 			Namespace: MetricOvnNamespace,
 			Subsystem: MetricOvnSubsystemController,
 			Name:      "integration_bridge_patch_ports",
-			Help: "Captures the number of patch ports that connect br-int OVS " +
+			Help: "Captures the number of patch ports that connect the integration OVS " +
 				"bridge to physical OVS bridge and br-local OVS bridge.",
 		},
 		func() float64 {
@@ -464,7 +465,7 @@ func RegisterOvnControllerMetrics(stopChan <-chan struct{}) {
 			Namespace: MetricOvnNamespace,
 			Subsystem: MetricOvnSubsystemController,
 			Name:      "integration_bridge_geneve_ports",
-			Help:      "Captures the number of geneve ports that are on br-int OVS bridge.",
+			Help:      "Captures the number of geneve ports that are on the integration OVS bridge.",
 		},
 		func() float64 {
 			return getPortCount("geneve")

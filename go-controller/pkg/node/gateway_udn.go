@@ -262,7 +262,7 @@ func (udng *UserDefinedNetworkGateway) DelNetwork() error {
 }
 
 // addUDNManagementPort does the following:
-// STEP1: creates the (netdevice) OVS interface on br-int for the UDN's management port
+// STEP1: creates the (netdevice) OVS interface on the integration bridge for the UDN's management port
 // STEP2: It saves the MAC address generated on the 1st go as an option on the OVS interface
 // so that it persists on reboots
 // STEP3: sets up the management port link on the host
@@ -288,14 +288,14 @@ func (udng *UserDefinedNetworkGateway) addUDNManagementPort() (netlink.Link, err
 
 	// STEP1
 	stdout, stderr, err := util.RunOVSVsctl(
-		"--", "--may-exist", "add-port", "br-int", interfaceName,
+		"--", "--may-exist", "add-port", config.GetBridgeName(), interfaceName,
 		"--", "set", "interface", interfaceName,
 		"type=internal", "mtu_request="+fmt.Sprintf("%d", udng.NetInfo.MTU()),
 		"external-ids:iface-id="+udng.GetNetworkScopedK8sMgmtIntfName(udng.node.Name),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add port to br-int for network %s, stdout: %q, stderr: %q, error: %w",
-			udng.GetNetworkName(), stdout, stderr, err)
+		return nil, fmt.Errorf("failed to add port to %s for network %s, stdout: %q, stderr: %q, error: %w",
+			config.GetBridgeName(), udng.NetInfo.GetNetworkName(), stdout, stderr, err)
 	}
 	klog.V(3).Infof("Added OVS management port interface %s for network %s", interfaceName, udng.GetNetworkName())
 
@@ -345,18 +345,18 @@ func (udng *UserDefinedNetworkGateway) addUDNManagementPort() (netlink.Link, err
 }
 
 // deleteUDNManagementPort does the following:
-// STEP1: deletes the OVS interface on br-int for the UDN's management port interface
+// STEP1: deletes the OVS interface on the integration bridge for the UDN's management port interface
 // STEP2: deletes the mac address from the annotation
 func (udng *UserDefinedNetworkGateway) deleteUDNManagementPort() error {
 	var err error
 	interfaceName := util.GetNetworkScopedK8sMgmtHostIntfName(uint(udng.networkID))
 	// STEP1
 	stdout, stderr, err := util.RunOVSVsctl(
-		"--", "--if-exists", "del-port", "br-int", interfaceName,
+		"--", "--if-exists", "del-port", config.GetBridgeName(), interfaceName,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to delete port from br-int for network %s, stdout: %q, stderr: %q, error: %v",
-			udng.GetNetworkName(), stdout, stderr, err)
+		return fmt.Errorf("failed to delete port from %s for network %s, stdout: %q, stderr: %q, error: %v",
+			config.GetBridgeName(), udng.NetInfo.GetNetworkName(), stdout, stderr, err)
 	}
 	klog.V(3).Infof("Removed OVS management port interface %s for network %s", interfaceName, udng.GetNetworkName())
 	// sending nil mac address will delete the network's annotation value

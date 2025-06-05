@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/metrics"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
 
@@ -215,7 +216,7 @@ func doPodFlowsExist(mac string, ifAddrs []*net.IPNet, ofPort int) bool {
 		for _, table := range query.tables {
 			queryStr := fmt.Sprintf("table=%d,%s", table, query.match)
 			// ovs-ofctl dumps error on stderr, so stdout will only dump flow data if matches the query.
-			stdout, err := ofctlExec("dump-flows", "br-int", queryStr)
+			stdout, err := ofctlExec("dump-flows", config.GetBridgeName(), queryStr)
 			if err == nil && len(stdout) > 0 {
 				found = true
 				break

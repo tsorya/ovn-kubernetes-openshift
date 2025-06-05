@@ -56,7 +56,6 @@ const (
 	GWRouterToExtSwitchPrefix    = "rtoe-"
 	EgressGWSwitchPrefix         = "exgw-"
 	PatchPortPrefix              = "patch-"
-	PatchPortSuffix              = "-to-br-int"
 
 	NodeLocalSwitch = "node_local_switch"
 
@@ -233,3 +232,8 @@ const (
 	// may be refreshed with a new ARP request.
 	GRMACBindingAgeThreshold = "300"
 )
+
+// PatchPortSuffix is now generated dynamically based on the configured bridge name
+func PatchPortSuffix(bridgeName string) string {
+	return "-to-" + bridgeName
+}
