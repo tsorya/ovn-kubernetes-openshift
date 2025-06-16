@@ -19,11 +19,11 @@ import (
 	utilerrors "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util/errors"
 )
 
-// Check if the Pod is ready so that we can add its associated DPU to the integration bridge.
+// Check if the Pod is ready so that we can add its associated DPU to br-int.
 // If true, return its dpuConnDetails, otherwise return nil
 func (bnnc *BaseNodeNetworkController) podReadyToAddDPU(pod *kapi.Pod, nadName string) *util.DPUConnectionDetails {
 	if bnnc.name != pod.Spec.NodeName {
-		klog.V(5).Infof("Pod %s/%s is not scheduled on this node %s", pod.Namespace, pod.Name, bnnc.name)
+		klog.Infof("AAAA Pod %s/%s is not scheduled on this node %s", pod.Namespace, pod.Name, bnnc.name)
 		return nil
 	}
 
@@ -33,7 +33,7 @@ func (bnnc *BaseNodeNetworkController) podReadyToAddDPU(pod *kapi.Pod, nadName s
 			klog.Errorf("Failed to get DPU annotation for pod %s/%s NAD %s: %v",
 				pod.Namespace, pod.Name, nadName, err)
 		} else {
-			klog.V(5).Infof("DPU connection details annotation still not found for %s/%s for NAD %s",
+			klog.Infof("AAAAA DPU connection details annotation still not found for %s/%s for NAD %s",
 				pod.Namespace, pod.Name, nadName)
 		}
 		return nil
@@ -45,7 +45,7 @@ func (bnnc *BaseNodeNetworkController) podReadyToAddDPU(pod *kapi.Pod, nadName s
 func (bnnc *BaseNodeNetworkController) addDPUPodForNAD(pod *kapi.Pod, dpuCD *util.DPUConnectionDetails,
 	netName, nadName string, getter cni.PodInfoGetter) error {
 	podDesc := fmt.Sprintf("pod %s/%s for NAD %s", pod.Namespace, pod.Name, nadName)
-	klog.Infof("Adding %s on DPU", podDesc)
+	klog.Infof("AAAAAAAAAAAAA Adding %s on DPU", podDesc)
 	podInterfaceInfo, err := cni.PodAnnotation2PodInfo(pod.Annotations, nil,
 		string(pod.UID), "", nadName, netName, config.Default.MTU)
 	if err != nil {
@@ -99,12 +99,12 @@ func dpuConnectionDetailChanged(oldDPUCD, newDPUCD *util.DPUConnectionDetails) b
 // watchPodsDPU watch updates for pod DPU annotations
 func (bnnc *BaseNodeNetworkController) watchPodsDPU() (*factory.Handler, error) {
 	clientSet := cni.NewClientSet(bnnc.client, corev1listers.NewPodLister(bnnc.watchFactory.LocalPodInformer().GetIndexer()))
-
+	klog.Infof("AAAAAAAAAAAAA Watching Pods for network %s", bnnc.GetNetworkName())
 	netName := bnnc.GetNetworkName()
 	return bnnc.watchFactory.AddPodHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			pod := obj.(*kapi.Pod)
-			klog.V(5).Infof("Add for Pod: %s/%s for network %s", pod.Namespace, pod.Name, netName)
+			klog.Infof("AAAAAAAA Add for Pod: %s/%s for network %s", pod.Namespace, pod.Name, netName)
 			if util.PodWantsHostNetwork(pod) {
 				return
 			}
@@ -113,14 +113,17 @@ func (bnnc *BaseNodeNetworkController) watchPodsDPU() (*factory.Handler, error) 
 			// For default network, NAD name is DefaultNetworkName.
 			nadToDPUCDMap := map[string]*util.DPUConnectionDetails{}
 			if bnnc.IsSecondary() {
+				klog.Infof("AAAAA SECONDARY Add for Pod: %s/%s for network %s", pod.Namespace, pod.Name, netName)
 				on, networkMap, err := util.GetPodNADToNetworkMapping(pod, bnnc.NetInfo)
+				klog.Infof("AAAAA Pod %s/%s is attached to network %s with NADs: %v",
+					pod.Namespace, pod.Name, netName, networkMap)
 				if err != nil || !on {
 					if err != nil {
 						// configuration error, no need to retry, do not return error
 						klog.Errorf("Error getting network-attachment for pod %s/%s network %s: %v",
 							pod.Namespace, pod.Name, bnnc.GetNetworkName(), err)
 					} else {
-						klog.V(5).Infof("Skipping Pod %s/%s as it is not attached to network: %s",
+						klog.Infof("Skipping Pod %s/%s as it is not attached to network: %s",
 							pod.Namespace, pod.Name, netName)
 					}
 					return
@@ -131,9 +134,12 @@ func (bnnc *BaseNodeNetworkController) watchPodsDPU() (*factory.Handler, error) 
 			} else {
 				nadToDPUCDMap[types.DefaultNetworkName] = nil
 			}
-
+			klog.Infof("AAAAAAAAAAAA Pod %s/%s is attached to network %s with NADs: %v",
+				pod.Namespace, pod.Name, netName, nadToDPUCDMap)
 			for nadName := range nadToDPUCDMap {
 				dpuCD := bnnc.podReadyToAddDPU(pod, nadName)
+				klog.Infof("AAAAAAAAAAA Pod %s/%s is attached to network %s with NAD %s, dpuCD: %+v",
+					pod.Namespace, pod.Name, netName, nadName, dpuCD)
 				if dpuCD != nil {
 					err := bnnc.addDPUPodForNAD(pod, dpuCD, netName, nadName, clientSet)
 					if err != nil {
@@ -143,12 +149,14 @@ func (bnnc *BaseNodeNetworkController) watchPodsDPU() (*factory.Handler, error) 
 					}
 				}
 			}
+			klog.Infof("AAAAAAAAAAAA Pod 2222 %s/%s is attached to network %s with NADs: %v",
+				pod.Namespace, pod.Name, netName, nadToDPUCDMap)
 			bnnc.podNADToDPUCDMap.Store(pod.UID, nadToDPUCDMap)
 		},
 		UpdateFunc: func(old, newer interface{}) {
 			oldPod := old.(*kapi.Pod)
 			newPod := newer.(*kapi.Pod)
-			klog.V(5).Infof("Update for Pod: %s/%s for network %s", newPod.Namespace, newPod.Name, netName)
+			klog.Infof("Update for Pod: %s/%s for network %s", newPod.Namespace, newPod.Name, netName)
 			v, ok := bnnc.podNADToDPUCDMap.Load(newPod.UID)
 			if !ok {
 				klog.V(5).Infof("Skipping update for Pod %s/%s as it is not attached to network: %s",
@@ -188,6 +196,7 @@ func (bnnc *BaseNodeNetworkController) watchPodsDPU() (*factory.Handler, error) 
 			bnnc.podNADToDPUCDMap.Store(newPod.UID, nadToDPUCDMap)
 		},
 		DeleteFunc: func(obj interface{}) {
+			klog.Infof("Delete for Pod: %s for network %s", obj.(*kapi.Pod).Name, netName)
 			pod := obj.(*kapi.Pod)
 			v, ok := bnnc.podNADToDPUCDMap.Load(pod.UID)
 			if !ok {
@@ -231,7 +240,7 @@ func (bnnc *BaseNodeNetworkController) updatePodDPUConnStatusWithRetry(origPod *
 
 // addRepPort adds the representor of the VF to the ovs bridge
 func (bnnc *BaseNodeNetworkController) addRepPort(pod *kapi.Pod, dpuCD *util.DPUConnectionDetails, ifInfo *cni.PodInterfaceInfo, getter cni.PodInfoGetter) error {
-
+	klog.Info("AAAAAAAAA Adding representor port for pod %s/%s on DPU", pod.Namespace, pod.Name)
 	nadName := ifInfo.NADName
 	podDesc := fmt.Sprintf("pod %s/%s for NAD %s", pod.Namespace, pod.Name, nadName)
 	vfRepName, err := util.GetSriovnetOps().GetVfRepresentorDPU(dpuCD.PfId, dpuCD.VfId)
@@ -290,7 +299,7 @@ func (bnnc *BaseNodeNetworkController) addRepPort(pod *kapi.Pod, dpuCD *util.DPU
 func (bnnc *BaseNodeNetworkController) delRepPort(pod *kapi.Pod, dpuCD *util.DPUConnectionDetails, vfRepName, nadName string) error {
 	//TODO(adrianc): handle: clearPodBandwidth(pr.SandboxID), pr.deletePodConntrack()
 	podDesc := fmt.Sprintf("pod %s/%s for NAD %s", pod.Namespace, pod.Name, nadName)
-	klog.Infof("Delete VF representor %s for %s", vfRepName, podDesc)
+	klog.Infof("AAAAAAAAAAAAA Delete VF representor %s for %s", vfRepName, podDesc)
 	ifExists, sandbox, expectedNADName, err := util.GetOVSPortPodInfo(vfRepName)
 	if err != nil {
 		return fmt.Errorf(err.Error())

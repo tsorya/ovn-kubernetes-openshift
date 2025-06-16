@@ -57,7 +57,7 @@ func getVRFCreationFakeOVSCommands(fexec *ovntest.FakeExec) {
 
 func getDeletionFakeOVSCommands(fexec *ovntest.FakeExec, mgtPort string) {
 	fexec.AddFakeCmdsNoOutputNoError([]string{
-		"ovs-vsctl --timeout=15 -- --if-exists del-port " + config.GetBridgeName() + " " + mgtPort,
+		"ovs-vsctl --timeout=15 -- --if-exists del-port br-int " + mgtPort,
 	})
 }
 
@@ -95,14 +95,14 @@ func setUpGatewayFakeOVSCommands(fexec *ovntest.FakeExec) {
 		})
 	}
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:ovn-bridge-mappings",
+		Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:ovn-bridge-mappings" + config.Default.SystemIDSuffix(),
 		Output: "",
 	})
 	fexec.AddFakeCmdsNoOutputNoError([]string{
-		"ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-bridge-mappings=" + types.PhysicalNetworkName + ":breth0",
+		"ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-bridge-mappings" + config.Default.SystemIDSuffix() + "=" + types.PhysicalNetworkName + ":breth0",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:system-id",
+		Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:system-id" + config.Default.SystemIDSuffix(),
 		Output: "cb9ec8fa-b409-4ef3-9f42-d9283c47aac6",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -114,7 +114,7 @@ func setUpGatewayFakeOVSCommands(fexec *ovntest.FakeExec) {
 		Output: "false",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_worker1-to-" + config.GetBridgeName() + " ofport",
+		Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_worker1-to-br-int ofport",
 		Output: "5",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -146,7 +146,7 @@ func setUpGatewayFakeOVSCommands(fexec *ovntest.FakeExec) {
 		Output: "net.ipv4.conf.ovn-k8s-mp0.rp_filter = 2",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_worker1-to-" + config.GetBridgeName() + " ofport",
+		Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_worker1-to-br-int ofport",
 		Output: "5",
 	})
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -161,7 +161,7 @@ func setUpGatewayFakeOVSCommands(fexec *ovntest.FakeExec) {
 func setUpUDNOpenflowManagerFakeOVSCommands(fexec *ovntest.FakeExec) {
 	// UDN patch port
 	fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-		Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_bluenet_worker1-to-" + config.GetBridgeName() + " ofport",
+		Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_bluenet_worker1-to-br-int ofport",
 		Output: "15",
 	})
 }
@@ -188,6 +188,7 @@ var _ = Describe("UserDefinedNetworkGateway", func() {
 	BeforeEach(func() {
 		// Restore global default values before each testcase
 		config.PrepareTestConfig()
+		config.Default.SystemID = "cb9ec8fa-b409-4ef3-9f42-d9283c47aac6"
 		// Use a larger masq subnet to allow OF manager to allocate IPs for UDNs.
 		config.Gateway.V6MasqueradeSubnet = "fd69::/112"
 		config.Gateway.V4MasqueradeSubnet = "169.254.0.0/17"

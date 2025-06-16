@@ -887,7 +887,7 @@ func GetOVSPortPodInfo(hostIfName string) (bool, string, string, error) {
 	if stdout == "" {
 		return false, "", "", nil
 	}
-	sandbox := GetExternalIDValByKey(stdout, "sandbox")
+	sandbox := GetExternalIDValByKey(stdout, ("sandbox"))
 	nadName := GetExternalIDValByKey(stdout, types.NADExternalID)
 	// if network_name does not exists, it is default network
 	if nadName == "" {

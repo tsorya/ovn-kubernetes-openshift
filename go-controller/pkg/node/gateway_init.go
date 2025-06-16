@@ -36,8 +36,11 @@ func bridgedGatewayNodeSetup(nodeName, bridgeName, physicalNetworkName string) (
 	// that provides connectivity to that network. It is in the form of physnet1:br1,physnet2:br2.
 	// Note that there may be multiple ovs bridge mappings, be sure not to override
 	// the mappings for the other physical network
+	// Use SystemIDSuffix to allow multiple ovnkube instances with different system-ids
+	bridgeMappingsKey := fmt.Sprintf("external_ids:ovn-bridge-mappings%s", config.Default.SystemIDSuffix())
+
 	stdout, stderr, err := util.RunOVSVsctl("--if-exists", "get", "Open_vSwitch", ".",
-		"external_ids:ovn-bridge-mappings")
+		bridgeMappingsKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to get ovn-bridge-mappings stderr:%s (%v)", stderr, err)
 	}
@@ -59,7 +62,7 @@ func bridgedGatewayNodeSetup(nodeName, bridgeName, physicalNetworkName string) (
 	mapString += physicalNetworkName + ":" + bridgeName
 
 	_, stderr, err = util.RunOVSVsctl("set", "Open_vSwitch", ".",
-		fmt.Sprintf("external_ids:ovn-bridge-mappings=%s", mapString))
+		fmt.Sprintf("%s=%s", bridgeMappingsKey, mapString))
 	if err != nil {
 		return "", fmt.Errorf("failed to set ovn-bridge-mappings for ovs bridge %s"+
 			", stderr:%s (%v)", bridgeName, stderr, err)
@@ -411,7 +414,7 @@ func (nc *DefaultNodeNetworkController) initGateway(subnets []*net.IPNet, nodeAn
 	}
 
 	readyGwFunc := func() (bool, error) {
-		controllerReady, err := isOVNControllerReady()
+		controllerReady, err := isOVNControllerReady(config.GetBridgeName())
 		if err != nil || !controllerReady {
 			return false, err
 		}

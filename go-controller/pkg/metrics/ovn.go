@@ -299,13 +299,21 @@ func setOvnControllerConfigurationMetrics() (err error) {
 		case "ovn-encap-type":
 			metricEncapType.Reset()
 			metricEncapType.WithLabelValues(fieldValue).Set(1)
+		default:
+			// Handle ovn-encap-type with system-id suffix (e.g., ovn-encap-type-system1)
+			if strings.HasPrefix(fieldType, "ovn-encap-type-") {
+				metricEncapType.Reset()
+				metricEncapType.WithLabelValues(fieldValue).Set(1)
+			}
+			// Handle ovn-bridge-mappings with system-id suffix (e.g., ovn-bridge-mappings-system1)
+			if fieldType == "ovn-bridge-mappings" || strings.HasPrefix(fieldType, "ovn-bridge-mappings-") {
+				metricBridgeMappings.Reset()
+				metricBridgeMappings.WithLabelValues(fieldValue).Set(1)
+			}
 		case "ovn-k8s-node-port":
 			if fieldValue == "false" {
 				ovnNodePortValue = 0
 			}
-		case "ovn-bridge-mappings":
-			metricBridgeMappings.Reset()
-			metricBridgeMappings.WithLabelValues(fieldValue).Set(1)
 		}
 	}
 	metricOvnNodePortEnabled.Set(float64(ovnNodePortValue))
@@ -339,7 +347,7 @@ func getPortCount(portType string) float64 {
 	switch portType {
 	case "patch":
 		for _, portName := range portNames {
-			if strings.Contains(portName, config.GetBridgeName()) {
+			if strings.Contains(portName, config.Default.BridgeName) {
 				portCount++
 			}
 		}
@@ -434,10 +442,10 @@ func RegisterOvnControllerMetrics(stopChan <-chan struct{}) {
 			Name:      "integration_bridge_openflow_total",
 			Help:      "The total number of OpenFlow flows in the integration bridge.",
 		}, func() float64 {
-			stdout, stderr, err := util.RunOVSOfctl("-t", "5", "dump-aggregate", config.GetBridgeName())
+			stdout, stderr, err := util.RunOVSOfctl("-t", "5", "dump-aggregate", config.Default.BridgeName)
 			if err != nil {
 				klog.Errorf("Failed to get flow count for %s, stderr(%s): (%v)",
-					config.GetBridgeName(), stderr, err)
+					config.Default.BridgeName,stderr, err)
 				return 0
 			}
 			for _, kvPair := range strings.Fields(stdout) {
@@ -454,7 +462,7 @@ func RegisterOvnControllerMetrics(stopChan <-chan struct{}) {
 			Namespace: MetricOvnNamespace,
 			Subsystem: MetricOvnSubsystemController,
 			Name:      "integration_bridge_patch_ports",
-			Help: "Captures the number of patch ports that connect the integration OVS " +
+			Help: "Captures the number of patch ports that connect br-int OVS " +
 				"bridge to physical OVS bridge and br-local OVS bridge.",
 		},
 		func() float64 {
@@ -465,7 +473,7 @@ func RegisterOvnControllerMetrics(stopChan <-chan struct{}) {
 			Namespace: MetricOvnNamespace,
 			Subsystem: MetricOvnSubsystemController,
 			Name:      "integration_bridge_geneve_ports",
-			Help:      "Captures the number of geneve ports that are on the integration OVS bridge.",
+			Help:      "Captures the number of geneve ports that are on br-int OVS bridge.",
 		},
 		func() float64 {
 			return getPortCount("geneve")

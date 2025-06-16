@@ -213,18 +213,18 @@ func setupManagementPortIPFamilyConfig(routeManager *routemanager.Controller, mp
 	// source protocol address to be in the Logical Switch's subnet.
 	if exists, err = util.LinkNeighExists(mpcfg.link, cfg.gwIP, mpcfg.routerMAC); err == nil && !exists {
 		warnings = append(warnings, fmt.Sprintf("missing arp entry for MAC/IP binding (%s/%s) on link %s",
-			mpcfg.routerMAC.String(), cfg.gwIP, types.K8sMgmtIntfName))
+			mpcfg.routerMAC.String(), cfg.gwIP, types.K8sMgmtIntfName(config.Default.SystemID)))
 		// LinkNeighExists checks if the mac also matches, but it is possible there is a stale entry
 		// still in the neighbor cache which would prevent add. Therefore execute a delete first if an IP entry exists.
 		if exists, err = util.LinkNeighIPExists(mpcfg.link, cfg.gwIP); err != nil {
 			return warnings, fmt.Errorf("failed to detect if stale IP neighbor entry exists for IP %s, on iface %s: %v",
-				cfg.gwIP.String(), types.K8sMgmtIntfName, err)
+				cfg.gwIP.String(), types.K8sMgmtIntfName(config.Default.SystemID), err)
 		} else if exists {
 			warnings = append(warnings, fmt.Sprintf("found stale neighbor entry IP binding (%s) on link %s",
-				cfg.gwIP.String(), types.K8sMgmtIntfName))
+				cfg.gwIP.String(), types.K8sMgmtIntfName(config.Default.SystemID)))
 			if err = util.LinkNeighDel(mpcfg.link, cfg.gwIP); err != nil {
 				warnings = append(warnings, fmt.Sprintf("failed to remove stale IP neighbor entry for IP %s, on iface %s: %v",
-					cfg.gwIP.String(), types.K8sMgmtIntfName, err))
+					cfg.gwIP.String(), types.K8sMgmtIntfName(config.Default.SystemID), err))
 			}
 		}
 		err = util.LinkNeighAdd(mpcfg.link, cfg.gwIP, mpcfg.routerMAC)
@@ -235,10 +235,10 @@ func setupManagementPortIPFamilyConfig(routeManager *routemanager.Controller, mp
 
 	// IPv6 forwarding is enabled globally
 	if mpcfg.ipv4 != nil && cfg == mpcfg.ipv4 {
-		stdout, stderr, err := util.RunSysctl("-w", fmt.Sprintf("net.ipv4.conf.%s.forwarding=1", types.K8sMgmtIntfName))
-		if err != nil || stdout != fmt.Sprintf("net.ipv4.conf.%s.forwarding = 1", types.K8sMgmtIntfName) {
+		stdout, stderr, err := util.RunSysctl("-w", fmt.Sprintf("net.ipv4.conf.%s.forwarding=1", types.K8sMgmtIntfName(config.Default.SystemID)))
+		if err != nil || stdout != fmt.Sprintf("net.ipv4.conf.%s.forwarding = 1", types.K8sMgmtIntfName(config.Default.SystemID)) {
 			return warnings, fmt.Errorf("could not set the correct forwarding value for interface %s: stdout: %v, stderr: %v, err: %v",
-				types.K8sMgmtIntfName, stdout, stderr, err)
+				types.K8sMgmtIntfName(config.Default.SystemID), stdout, stderr, err)
 		}
 	}
 
@@ -465,7 +465,7 @@ func DelMgtPortIptRules() {
 	if err != nil {
 		return
 	}
-	rule := []string{"-o", types.K8sMgmtIntfName, "-j", iptableMgmPortChain}
+	rule := []string{"-o", types.K8sMgmtIntfName(config.Default.SystemID), "-j", iptableMgmPortChain}
 	_ = ipt.Delete("nat", "POSTROUTING", rule...)
 	_ = ipt6.Delete("nat", "POSTROUTING", rule...)
 	_ = ipt.ClearChain("nat", iptableMgmPortChain)

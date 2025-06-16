@@ -1707,7 +1707,7 @@ func initSvcViaMgmPortRoutingRules(hostSubnets []*net.IPNet) error {
 		gatewayIP := util.GetNodeGatewayIfAddr(hostSubnet).IP.String()
 		for _, svcCIDR := range config.Kubernetes.ServiceCIDRs {
 			if isIPv6 == utilnet.IsIPv6CIDR(svcCIDR) {
-				if stdout, stderr, err := util.RunIP("route", "replace", "table", ovnkubeSvcViaMgmPortRT, svcCIDR.String(), "via", gatewayIP, "dev", types.K8sMgmtIntfName); err != nil {
+				if stdout, stderr, err := util.RunIP("route", "replace", "table", ovnkubeSvcViaMgmPortRT, svcCIDR.String(), "via", gatewayIP, "dev", types.K8sMgmtIntfName(config.Default.SystemID)); err != nil {
 					return fmt.Errorf("error adding routing table entry into custom routing table: %s: stdout: %s, stderr: %s, err: %v", ovnkubeSvcViaMgmPortRT, stdout, stderr, err)
 				}
 				klog.V(5).Infof("Successfully added route into custom routing table: %s", ovnkubeSvcViaMgmPortRT)
@@ -1987,8 +1987,11 @@ func cleanupSharedGateway() error {
 	}
 
 	// Get the OVS bridge name from ovn-bridge-mappings
+	// Use SystemIDSuffix to allow multiple ovnkube instances with different system-ids
+	bridgeMappingsKey := fmt.Sprintf("external_ids:ovn-bridge-mappings%s", config.Default.SystemIDSuffix())
+
 	stdout, stderr, err = util.RunOVSVsctl("--if-exists", "get", "Open_vSwitch", ".",
-		"external_ids:ovn-bridge-mappings")
+		bridgeMappingsKey)
 	if err != nil {
 		return fmt.Errorf("failed to get ovn-bridge-mappings stderr:%s (%v)", stderr, err)
 	}

@@ -204,8 +204,11 @@ func getLocalAddrs() (map[string]net.IPNet, error) {
 }
 
 func cleanupLocalnetGateway(physnet string) error {
+	// Use SystemIDSuffix to allow multiple ovnkube instances with different system-ids
+	bridgeMappingsKey := fmt.Sprintf("external_ids:ovn-bridge-mappings%s", config.Default.SystemIDSuffix())
+
 	stdout, stderr, err := util.RunOVSVsctl("--if-exists", "get", "Open_vSwitch", ".",
-		"external_ids:ovn-bridge-mappings")
+		bridgeMappingsKey)
 	if err != nil {
 		return fmt.Errorf("failed to get ovn-bridge-mappings stderr:%s (%v)", stderr, err)
 	}

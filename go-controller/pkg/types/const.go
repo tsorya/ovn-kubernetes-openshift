@@ -17,9 +17,6 @@ const (
 	// UDNVRFDevicePrefix vrf device prefix associated with every user
 	UDNVRFDevicePrefix = "mp"
 
-	// K8sMgmtIntfName name to be used as an OVS internal port on the node
-	K8sMgmtIntfName = K8sMgmtIntfNamePrefix + "0"
-
 	// PhysicalNetworkName is the name that maps to an OVS bridge that provides
 	// access to physical/external network
 	PhysicalNetworkName     = "physnet"
@@ -236,4 +233,15 @@ const (
 // PatchPortSuffix is now generated dynamically based on the configured bridge name
 func PatchPortSuffix(bridgeName string) string {
 	return "-to-" + bridgeName
+}
+
+// K8sMgmtIntfName returns the management port name with optional system-id suffix.
+// This provides unique naming when multiple OVN instances are running.
+// Returns "ovn-k8s-mp0" for empty system-id (backward compatibility)
+// or "ovn-k8s-mp10" when system-id is configured.
+func K8sMgmtIntfName(systemID string) string {
+	if systemID == "" {
+		return K8sMgmtIntfNamePrefix + "0"
+	}
+	return K8sMgmtIntfNamePrefix + "1" + "0"
 }

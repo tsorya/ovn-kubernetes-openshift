@@ -262,7 +262,7 @@ func (udng *UserDefinedNetworkGateway) DelNetwork() error {
 }
 
 // addUDNManagementPort does the following:
-// STEP1: creates the (netdevice) OVS interface on the integration bridge for the UDN's management port
+// STEP1: creates the (netdevice) OVS interface on br-int for the UDN's management port
 // STEP2: It saves the MAC address generated on the 1st go as an option on the OVS interface
 // so that it persists on reboots
 // STEP3: sets up the management port link on the host
@@ -291,7 +291,7 @@ func (udng *UserDefinedNetworkGateway) addUDNManagementPort() (netlink.Link, err
 		"--", "--may-exist", "add-port", config.GetBridgeName(), interfaceName,
 		"--", "set", "interface", interfaceName,
 		"type=internal", "mtu_request="+fmt.Sprintf("%d", udng.NetInfo.MTU()),
-		"external-ids:iface-id="+udng.GetNetworkScopedK8sMgmtIntfName(udng.node.Name),
+		fmt.Sprintf("external-ids:iface-id%s=%s", config.Default.SystemIDSuffix(), udng.GetNetworkScopedK8sMgmtIntfName(udng.node.Name)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add port to %s for network %s, stdout: %q, stderr: %q, error: %w",
@@ -345,7 +345,7 @@ func (udng *UserDefinedNetworkGateway) addUDNManagementPort() (netlink.Link, err
 }
 
 // deleteUDNManagementPort does the following:
-// STEP1: deletes the OVS interface on the integration bridge for the UDN's management port interface
+// STEP1: deletes the OVS interface on br-int for the UDN's management port interface
 // STEP2: deletes the mac address from the annotation
 func (udng *UserDefinedNetworkGateway) deleteUDNManagementPort() error {
 	var err error

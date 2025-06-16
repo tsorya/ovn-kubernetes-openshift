@@ -73,7 +73,8 @@ var (
 		LFlowCacheEnable:      true,
 		RawClusterSubnets:     "10.128.0.0/14/23",
 		Zone:                  types.OvnDefaultZone,
-		BridgeName:            "br-int", // Default OVS integration bridge name
+		BridgeName:            "br-int-dpu", // Default OVS integration bridge name
+		SystemID:              "dpu-ovnk",   // Default empty system ID
 	}
 
 	// Logging holds logging-related parsed config file parameters and command-line overrides
@@ -231,6 +232,10 @@ type DefaultConfig struct {
 	// EncapType value defines the encapsulation protocol to use to transmit packets between
 	// hypervisors. By default the value is 'geneve'
 	EncapType string `gcfg:"encap-type"`
+	// SystemID is an optional identifier used to differentiate between multiple OVN instances.
+	// When specified, it will be appended to external_ids like "ovn-encap-type-<system-id>".
+	// When empty, the standard format "ovn-encap-type" is used for backward compatibility.
+	SystemID string `gcfg:"system-id"`
 	// Configured IP address of the encapsulation endpoint.
 	EncapIP string `gcfg:"encap-ip"`
 	// The UDP Port of the encapsulation endpoint. If not specified, the IP default port
@@ -282,6 +287,16 @@ type DefaultConfig struct {
 	Zone string `gcfg:"zone"`
 	// BridgeName specifies the OVS integration bridge name
 	BridgeName string `gcfg:"bridge-name"`
+}
+
+// SystemIDSuffix returns the system-id suffix to be appended to OVN external IDs.
+// Returns "-<system-id>" if SystemID is set, or "" if empty.
+// This allows simple concatenation without conditional logic.
+func (c *DefaultConfig) SystemIDSuffix() string {
+	if c.SystemID == "" {
+		return ""
+	}
+	return "-" + c.SystemID
 }
 
 // LoggingConfig holds logging-related parsed config file parameters and command-line overrides
@@ -768,6 +783,12 @@ var CommonFlags = []cli.Flag{
 		Usage:       "The encapsulation protocol to use to transmit packets between hypervisors (default: geneve)",
 		Destination: &cliConfig.Default.EncapType,
 		Value:       Default.EncapType,
+	},
+	&cli.StringFlag{
+		Name:        "system-id",
+		Usage:       "Optional system identifier for distinguishing multiple OVN instances. When specified, it will be appended to external_ids like 'ovn-encap-type-<system-id>'",
+		Destination: &cliConfig.Default.SystemID,
+		Value:       Default.SystemID,
 	},
 	&cli.StringFlag{
 		Name:        "encap-ip",

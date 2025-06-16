@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/metrics"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
 
@@ -45,6 +44,7 @@ func ovsExec(args ...string) (string, error) {
 	}
 
 	args = append([]string{"--timeout=30"}, args...)
+	klog.V(5).Infof("AAAAAAAAAAAAAAA Exec: %s %s", vsctlPath, strings.Join(args, " "))
 	output, err := runner.Command(vsctlPath, args...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to run 'ovs-vsctl %s': %v\n  %q", strings.Join(args, " "), err, string(output))
@@ -60,6 +60,7 @@ func ovsExec(args ...string) (string, error) {
 func ovsGetMultiOutput(table, record string, columns []string) ([]string, error) {
 	args := []string{"--if-exists", "get", table, record}
 	args = append(args, columns...)
+	klog.Infof("AAAAAAAAAAAAAAA Exec: %s %s", vsctlPath, strings.Join(args, " "))
 	output, err := ovsExec(args...)
 	var result []string
 	// columns are separated with \n
@@ -161,7 +162,10 @@ func ofctlExec(args ...string) (string, error) {
 
 // getIfaceOFPort returns the of port number for an interface
 func getIfaceOFPort(ifaceName string) (int, error) {
+
 	port, err := ovsGet("Interface", ifaceName, "ofport", "")
+	klog.V(5).Infof("AAAAAAAAAAAAAAAAAAAa Interface %s", ifaceName)
+
 	if err == nil && port == "" {
 		return -1, fmt.Errorf("cannot find OpenFlow port for OVS interface: %s, error: %v ", ifaceName, err)
 	}
@@ -173,7 +177,7 @@ func getIfaceOFPort(ifaceName string) (int, error) {
 	return iPort, nil
 }
 
-func doPodFlowsExist(mac string, ifAddrs []*net.IPNet, ofPort int) bool {
+func doPodFlowsExist(mac string, ifAddrs []*net.IPNet, ofPort int, bridgeName string) bool {
 	// Function checks for OpenFlow flows to know the pod is ready
 	// Legacy way to check pod readiness for versions that don't support ovn-installed
 
@@ -216,7 +220,7 @@ func doPodFlowsExist(mac string, ifAddrs []*net.IPNet, ofPort int) bool {
 		for _, table := range query.tables {
 			queryStr := fmt.Sprintf("table=%d,%s", table, query.match)
 			// ovs-ofctl dumps error on stderr, so stdout will only dump flow data if matches the query.
-			stdout, err := ofctlExec("dump-flows", config.GetBridgeName(), queryStr)
+			stdout, err := ofctlExec("dump-flows", bridgeName, queryStr)
 			if err == nil && len(stdout) > 0 {
 				found = true
 				break
@@ -272,7 +276,7 @@ func checkCancelSandbox(mac string, getter PodInfoGetter, namespace, name, nadNa
 
 func waitForPodInterface(ctx context.Context, ifInfo *PodInterfaceInfo,
 	ifaceName, ifaceID string, getter PodInfoGetter,
-	namespace, name, initialPodUID string) error {
+	namespace, name, initialPodUID, bridgeName string) error {
 	var detail string
 	var ofPort int
 	var err error
@@ -280,10 +284,12 @@ func waitForPodInterface(ctx context.Context, ifInfo *PodInterfaceInfo,
 	// DPUHost mode can't use OVS external IDs for port-up detection because
 	// there is no ovn-controller running in DPUHost mode to set port-up
 	checkExternalIDs := !ifInfo.IsDPUHostMode
+	klog.Infof("AAAAAA Checking for OVS port %s with iface-id=%s, checkExternalIDs=%t", ifaceName, ifaceID, checkExternalIDs)
 	if checkExternalIDs {
 		detail = " (ovn-installed)"
 	} else {
 		ofPort, err = getIfaceOFPort(ifaceName)
+		klog.Infof("AAAAAA Checking for OVS port %s with iface-id=%s, ofPort=%d", ifaceName, ifaceID, ofPort)
 		if err != nil {
 			return err
 		}
@@ -300,11 +306,12 @@ func waitForPodInterface(ctx context.Context, ifInfo *PodInterfaceInfo,
 			}
 			return fmt.Errorf("%s waiting for OVS port binding%s for %s %v", errDetail, detail, mac, ifAddrs)
 		default:
-			columns := []string{"external-ids:iface-id"}
+			columns := []string{fmt.Sprintf("external-ids:iface-id")}
 			if checkExternalIDs {
 				// get ovn-installed flag in the same request
-				columns = append(columns, "external-ids:ovn-installed")
+				columns = append(columns, fmt.Sprintf("external-ids:ovn-installed"))
 			}
+			klog.Infof("AAAAAAAAAAA Waiting for OVS port %s to have iface-id=%s%s", ifaceName, ifaceID, detail)
 			output, err := ovsGetMultiOutput("Interface", ifaceName, columns)
 			// check to see if the interface has its external id set, which indicates if it is active
 			// It may have been cleared by a subsequent CNI ADD and if so, there's no need to keep checking for flows
@@ -319,7 +326,7 @@ func waitForPodInterface(ctx context.Context, ifInfo *PodInterfaceInfo,
 				}
 				klog.V(5).Infof("Still waiting for OVS port %s to have ovn-installed=true", ifaceName)
 			} else {
-				if doPodFlowsExist(mac, ifAddrs, ofPort) {
+				if doPodFlowsExist(mac, ifAddrs, ofPort, bridgeName) {
 					// success
 					return nil
 				}

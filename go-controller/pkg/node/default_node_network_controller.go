@@ -296,41 +296,44 @@ func setupOVNNode(node *kapi.Node) error {
 		}
 	}
 
+	// Build the ovn-encap-type external_id key with optional system-id suffix
+	encapTypeKey := fmt.Sprintf("external_ids:ovn-encap-type%s", config.Default.SystemIDSuffix())
+
 	setExternalIdsCmd := []string{
 		"set",
 		"Open_vSwitch",
 		".",
-		fmt.Sprintf("external_ids:ovn-encap-type=%s", config.Default.EncapType),
-		fmt.Sprintf("external_ids:ovn-encap-ip=%s", encapIP),
-		fmt.Sprintf("external_ids:ovn-remote-probe-interval=%d",
+		fmt.Sprintf("%s=%s", encapTypeKey, config.Default.EncapType),
+		fmt.Sprintf("external_ids:ovn-encap-ip%s=%s", config.Default.SystemIDSuffix(), encapIP),
+		fmt.Sprintf("external_ids:ovn-remote-probe-interval%s=%d", config.Default.SystemIDSuffix(),
 			config.Default.InactivityProbe),
-		fmt.Sprintf("external_ids:ovn-openflow-probe-interval=%d",
+		fmt.Sprintf("external_ids:ovn-openflow-probe-interval%s=%d", config.Default.SystemIDSuffix(),
 			config.Default.OpenFlowProbe),
 		// bundle-idle-timeout default value is 10s, it should be set
 		// as high as the ovn-openflow-probe-interval to allow ovn-controller
 		// to finish computation specially with complex acl configuration with port range.
 		fmt.Sprintf("other_config:bundle-idle-timeout=%d",
 			config.Default.OpenFlowProbe),
-		fmt.Sprintf("external_ids:hostname=\"%s\"", node.Name),
+		fmt.Sprintf("external_ids:hostname%s=\"%s\"", config.Default.SystemIDSuffix(), node.Name),
 		// If Interconnect feature is enabled, we want to tell ovn-controller to
 		// make this node/chassis as an interconnect gateway.
-		fmt.Sprintf("external_ids:ovn-is-interconn=%s", strconv.FormatBool(config.OVNKubernetesFeature.EnableInterconnect)),
-		fmt.Sprintf("external_ids:ovn-monitor-all=%t", config.Default.MonitorAll),
-		fmt.Sprintf("external_ids:ovn-ofctrl-wait-before-clear=%d", config.Default.OfctrlWaitBeforeClear),
-		fmt.Sprintf("external_ids:ovn-enable-lflow-cache=%t", config.Default.LFlowCacheEnable),
+		fmt.Sprintf("external_ids:ovn-is-interconn%s=%s", config.Default.SystemIDSuffix(), strconv.FormatBool(config.OVNKubernetesFeature.EnableInterconnect)),
+		fmt.Sprintf("external_ids:ovn-monitor-all%s=%t", config.Default.SystemIDSuffix(), config.Default.MonitorAll),
+		fmt.Sprintf("external_ids:ovn-ofctrl-wait-before-clear%s=%d", config.Default.SystemIDSuffix(), config.Default.OfctrlWaitBeforeClear),
+		fmt.Sprintf("external_ids:ovn-enable-lflow-cache%s=%t", config.Default.SystemIDSuffix(), config.Default.LFlowCacheEnable),
 		// when creating tunnel ports set local_ip, helps ensures multiple interfaces and ipv6 will work
-		"external_ids:ovn-set-local-ip=\"true\"",
+		fmt.Sprintf("external_ids:ovn-set-local-ip%s=\"true\"", config.Default.SystemIDSuffix()),
 	}
 
 	if config.Default.LFlowCacheLimit > 0 {
 		setExternalIdsCmd = append(setExternalIdsCmd,
-			fmt.Sprintf("external_ids:ovn-limit-lflow-cache=%d", config.Default.LFlowCacheLimit),
+			fmt.Sprintf("external_ids:ovn-limit-lflow-cache%s=%d", config.Default.SystemIDSuffix(), config.Default.LFlowCacheLimit),
 		)
 	}
 
 	if config.Default.LFlowCacheLimitKb > 0 {
 		setExternalIdsCmd = append(setExternalIdsCmd,
-			fmt.Sprintf("external_ids:ovn-memlimit-lflow-cache-kb=%d", config.Default.LFlowCacheLimitKb),
+			fmt.Sprintf("external_ids:ovn-memlimit-lflow-cache-kb%s=%d", config.Default.SystemIDSuffix(), config.Default.LFlowCacheLimitKb),
 		)
 	}
 
@@ -381,7 +384,7 @@ func setEncapPort(ctx context.Context) error {
 	return nil
 }
 
-func isOVNControllerReady() (bool, error) {
+func isOVNControllerReady(bridgeName string) (bool, error) {
 	// check node's connection status
 	runDir := util.GetOvnRunDir()
 	pid, err := os.ReadFile(runDir + "ovn-controller.pid")
@@ -398,8 +401,8 @@ func isOVNControllerReady() (bool, error) {
 		return false, nil
 	}
 
+	klog.Infof("AAAAAAAAAAAAAAAAAAAAAAA Node connection status = %s", bridgeName)
 	// check whether bridge exists on node
-	bridgeName := config.GetBridgeName()
 	_, _, err = util.RunOVSVsctl("--", "br-exists", bridgeName)
 	if err != nil {
 		return false, nil
@@ -526,7 +529,7 @@ func getManagementPortNetDev(netdevName string) (string, error) {
 		}
 		// this may not the first time invoked on the node after reboot
 		// netdev may have already been renamed to ovn-k8s-mp0.
-		link, err = util.GetNetLinkOps().LinkByName(types.K8sMgmtIntfName)
+		link, err = util.GetNetLinkOps().LinkByName(types.K8sMgmtIntfName(config.Default.SystemID))
 		if err != nil {
 			return "", fmt.Errorf("failed to get link device for %s. %v", netdevName, err)
 		}

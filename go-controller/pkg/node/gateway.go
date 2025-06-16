@@ -495,6 +495,7 @@ func bridgeForInterface(intfName, nodeName, physicalNetworkName string, gwIPs []
 	}
 	gwIntf := intfName
 	uplinkName := config.Gateway.UplinkPort
+	klog.Infof("AAAAAAAAAAAAAAAAAAAAAA Setting up shared interface gateway for node %s with uplink %s uplinkName %s", nodeName, intfName, uplinkName)
 
 	if uplinkName != "" {
 		// Uplink name is explicitly set

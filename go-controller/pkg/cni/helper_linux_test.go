@@ -13,6 +13,7 @@ import (
 	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/k8snetworkplumbingwg/sriovnet"
+	"github.com//ovn-orgovn-kubernetes/go-controller/pkg/config"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/cni/mocks"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/cni/types"
 	ovntest "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/testing"
@@ -1449,7 +1450,7 @@ func TestConfigureOVS(t *testing.T) {
 			})
 			tc.execMock.AddFakeCmd(&ovntest.ExpectedCmd{
 				Cmd: genOVSFindCmd("30", "Interface", "name",
-					"external-ids:iface-id=ns-foo_pod-bar"),
+					fmt.Sprintf("external-ids:iface-id%s=ns-foo_pod-bar", config.Default.SystemIDSuffix())),
 			})
 
 			tc.execMock.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -1466,10 +1467,10 @@ func TestConfigureOVS(t *testing.T) {
 			// ovs-vsctl add port to br-int
 			ovsAddPortCmd := fmt.Sprintf(
 				"ovs-vsctl --timeout=30 --may-exist "+
-					"add-port br-int %s other_config:transient=true "+
+					"add-port %s %s other_config:transient=true "+
 					"-- set interface %s external_ids:attached_mac=%s "+
 					"external_ids:iface-id=%s external_ids:iface-id-ver=%s "+
-					"external_ids:sandbox=%s ",
+					"external_ids:sandbox=%s ", config.Default.BridgeName,
 				tc.vfRep, tc.vfRep, "", genIfaceID(tc.podNs, tc.podName), tc.ifInfo.PodUID, sandboxID)
 			if tc.pfEncapIp != "" {
 				ovsAddPortCmd += fmt.Sprintf("external_ids:encap-ip=%s ", tc.pfEncapIp)
@@ -1623,7 +1624,7 @@ func TestConfigureOVS_getPfEncapIpWithError(t *testing.T) {
 				},
 				{
 					Cmd: genOVSFindCmd("30", "Interface", "name",
-						"external-ids:iface-id=ns-foo_pod-bar"),
+						fmt.Sprintf("external-ids:iface-id%s=ns-foo_pod-bar", config.Default.SystemIDSuffix())),
 				},
 				{
 					Cmd: genOVSFindCmd("30", "Interface", "external_ids", "name="+vfRep),

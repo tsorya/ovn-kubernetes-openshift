@@ -102,6 +102,9 @@ fi
 # a cmd must be provided, there is no default
 cmd=${1:-""}
 
+OVN_CHASSIS_NAME=${OVN_CHASSIS_NAME:-"dpu-ovnk"}
+INSTANCE_TAG="-${OVN_CHASSIS_NAME}"
+
 # ovn daemon log levels
 ovn_loglevel_northd=${OVN_LOGLEVEL_NORTHD:-"-vconsole:info"}
 ovn_loglevel_nb=${OVN_LOGLEVEL_NB:-"-vconsole:info"}
@@ -1253,7 +1256,7 @@ ovn-master() {
     ovnkube_metrics_scale_enable_flag="--metrics-enable-scale --metrics-enable-pprof"
   fi
   echo "ovnkube_metrics_scale_enable_flag: ${ovnkube_metrics_scale_enable_flag}"
-  
+
   ovn_stateless_netpol_enable_flag=
   if [[ ${ovn_stateless_netpol_enable} == "true" ]]; then
           ovn_stateless_netpol_enable_flag="--enable-stateless-netpol"
@@ -1654,6 +1657,7 @@ ovnkube-controller() {
 }
 
 ovnkube-controller-with-node() {
+  display_env
   trap 'kill $(jobs -p) ; rm -f /etc/cni/net.d/10-ovn-kubernetes.conf ; exit 0' TERM
   check_ovn_daemonset_version "1.0.0"
   rm -f ${OVN_RUNDIR}/ovnkube-controller-with-node.pid
@@ -1869,7 +1873,7 @@ ovnkube-controller-with-node() {
   if [[ ${ovn_encap_ip} != "" ]]; then
     ovn_encap_ip_flag="--encap-ip=${ovn_encap_ip}"
   else
-    ovn_encap_ip=$(ovs-vsctl --if-exists get Open_vSwitch . external_ids:ovn-encap-ip)
+    ovn_encap_ip=$(ovs-vsctl --if-exists get Open_vSwitch . external_ids:ovn-encap-ip${INSTANCE_TAG})
     if [[ $? == 0 ]]; then
       ovn_encap_ip=$(echo ${ovn_encap_ip} | tr -d '\"')
       if [[ "${ovn_encap_ip}" != "" ]]; then
@@ -1902,7 +1906,7 @@ ovnkube-controller-with-node() {
   if test -z "${OVN_UNPRIVILEGED_MODE+x}" -o "x${OVN_UNPRIVILEGED_MODE}" = xno; then
     ovn_unprivileged_flag=""
   fi
-  
+
   ovn_metrics_bind_address="${metrics_endpoint_ip}:${metrics_bind_port}"
   metrics_bind_address="${metrics_endpoint_ip}:${metrics_worker_port}"
   echo "ovn_metrics_bind_address=${ovn_metrics_bind_address}"
@@ -2009,6 +2013,11 @@ ovnkube-controller-with-node() {
     fi
   fi
 
+  ovn_conntrack_zone_flag=
+  if [[ ${ovn_conntrack_zone} != "" ]]; then
+     ovn_conntrack_zone_flag="--conntrack-zone=${ovn_conntrack_zone}"
+  fi
+
   ovn_stateless_netpol_enable_flag=
   if [[ ${ovn_stateless_netpol_enable} == "true" ]]; then
           ovn_stateless_netpol_enable_flag="--enable-stateless-netpol"
@@ -2016,6 +2025,7 @@ ovnkube-controller-with-node() {
   echo "ovn_stateless_netpol_enable_flag: ${ovn_stateless_netpol_enable_flag}"
 
   echo "=============== ovnkube-controller-with-node --init-ovnkube-controller-with-node=========="
+  echo "AAAAAAAAAAAAAAAAAAA --zone ${ovn_zone}"
   /usr/bin/ovnkube --init-ovnkube-controller ${K8S_NODE} --init-node ${K8S_NODE} \
     ${anp_enabled_flag} \
     ${disable_forwarding_flag} \
@@ -2065,6 +2075,7 @@ ovnkube-controller-with-node() {
     ${ssl_opts} \
     ${ovn_enable_dnsnameresolver_flag} \
     ${ovn_stateless_netpol_enable_flag} \
+    ${ovn_conntrack_zone_flag} \
     --cluster-subnets ${net_cidr} --k8s-service-cidr=${svc_cidr} \
     --export-ovs-metrics \
     --gateway-mode=${ovn_gateway_mode} ${ovn_gateway_opts} \
@@ -2494,7 +2505,7 @@ ovn-node() {
   if [[ ${ovn_encap_ip} != "" ]]; then
     ovn_encap_ip_flag="--encap-ip=${ovn_encap_ip}"
   else
-    ovn_encap_ip=$(ovs-vsctl --if-exists get Open_vSwitch . external_ids:ovn-encap-ip)
+    ovn_encap_ip=$(ovs-vsctl --if-exists get Open_vSwitch . external_ids${INSTANCE_TAG}:ovn-encap-ip)
     if [[ $? == 0 ]]; then
       ovn_encap_ip=$(echo ${ovn_encap_ip} | tr -d '\"')
       if [[ "${ovn_encap_ip}" != "" ]]; then

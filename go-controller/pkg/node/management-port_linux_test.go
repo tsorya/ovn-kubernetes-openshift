@@ -810,7 +810,7 @@ var _ = Describe("Management Port Operations", func() {
 				// Set up a fake k8sMgmt interface
 				err := testNS.Do(func(ns.NetNS) error {
 					defer GinkgoRecover()
-					ovntest.AddLink(types.K8sMgmtIntfName)
+					ovntest.AddLink(types.K8sMgmtIntfName(""))
 					return nil
 				})
 				Expect(err).NotTo(HaveOccurred())

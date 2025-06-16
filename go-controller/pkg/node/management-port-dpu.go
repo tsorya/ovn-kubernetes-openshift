@@ -34,7 +34,7 @@ func newManagementPortRepresentor(nodeName string, hostSubnets []*net.IPNet, rep
 
 func (mp *managementPortRepresentor) Create(_ *routemanager.Controller, node *v1.Node,
 	nodeLister listers.NodeLister, kubeInterface kube.Interface, waiter *startupWaiter) (*managementPortConfig, error) {
-	k8sMgmtIntfName := types.K8sMgmtIntfName
+	k8sMgmtIntfName := types.K8sMgmtIntfName(config.Default.SystemID)
 	if config.OvnKubeNode.Mode == types.NodeModeFull {
 		k8sMgmtIntfName += "_0"
 	}
@@ -57,7 +57,7 @@ func (mp *managementPortRepresentor) Create(_ *routemanager.Controller, node *v1
 		}
 	}
 
-	// configure management port: rename, set MTU and set link up and connect representor port to integration bridge
+	// configure management port: rename, set MTU and set link up and connect representor port to br-int
 	klog.Infof("Setup representor management port: %s", link.Attrs().Name)
 
 	setName := link.Attrs().Name != k8sMgmtIntfName
@@ -191,8 +191,8 @@ func (mp *managementPortNetdev) Create(routeManager *routemanager.Controller, no
 		return nil, err
 	}
 
-	if link.Attrs().Name != types.K8sMgmtIntfName {
-		err = syncMgmtPortInterface(mp.hostSubnets, types.K8sMgmtIntfName, false)
+	if link.Attrs().Name != types.K8sMgmtIntfName(config.Default.SystemID) {
+		err = syncMgmtPortInterface(mp.hostSubnets, types.K8sMgmtIntfName(config.Default.SystemID), false)
 		if err != nil {
 			return nil, fmt.Errorf("failed to sync management port: %v", err)
 		}
@@ -203,7 +203,7 @@ func (mp *managementPortNetdev) Create(routeManager *routemanager.Controller, no
 	klog.Infof("Setup netdevice management port: %s", link.Attrs().Name)
 	mgmtPortMac := util.IPAddrToHWAddr(util.GetNodeManagementIfAddr(mp.hostSubnets[0]).IP)
 	setMac := link.Attrs().HardwareAddr.String() != mgmtPortMac.String()
-	setName := link.Attrs().Name != types.K8sMgmtIntfName
+	setName := link.Attrs().Name != types.K8sMgmtIntfName(config.Default.SystemID)
 	setMTU := link.Attrs().MTU != config.Default.MTU
 
 	if setMac || setName || setMTU {
@@ -220,7 +220,7 @@ func (mp *managementPortNetdev) Create(routeManager *routemanager.Controller, no
 		}
 
 		if setName {
-			err := util.GetNetLinkOps().LinkSetName(link, types.K8sMgmtIntfName)
+			err := util.GetNetLinkOps().LinkSetName(link, types.K8sMgmtIntfName(config.Default.SystemID))
 			if err != nil {
 				return nil, fmt.Errorf("failed to set management port name. %v", err)
 			}
@@ -234,7 +234,7 @@ func (mp *managementPortNetdev) Create(routeManager *routemanager.Controller, no
 		}
 	}
 
-	if mp.netdevName != types.K8sMgmtIntfName && config.OvnKubeNode.Mode != types.NodeModeDPUHost {
+	if mp.netdevName != types.K8sMgmtIntfName(config.Default.SystemID) && config.OvnKubeNode.Mode != types.NodeModeDPUHost {
 		// Store original interface name for later use
 		if _, stderr, err := util.RunOVSVsctl("set", "Open_vSwitch", ".",
 			"external-ids:ovn-orig-mgmt-port-netdev-name="+mp.netdevName); err != nil {
@@ -245,11 +245,11 @@ func (mp *managementPortNetdev) Create(routeManager *routemanager.Controller, no
 	// Set link up
 	err = util.GetNetLinkOps().LinkSetUp(link)
 	if err != nil {
-		return nil, fmt.Errorf("failed to set link up for %s. %v", types.K8sMgmtIntfName, err)
+		return nil, fmt.Errorf("failed to set link up for %s. %v", types.K8sMgmtIntfName(config.Default.SystemID), err)
 	}
 
 	// Setup Iptable and routes
-	cfg, err := createPlatformManagementPort(routeManager, types.K8sMgmtIntfName, mp.hostSubnets)
+	cfg, err := createPlatformManagementPort(routeManager, types.K8sMgmtIntfName(config.Default.SystemID), mp.hostSubnets)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 
 func clearPodBandwidth(sandboxID string) error {
 	// interfaces will have the same name as ports
-	portList, err := ovsFind("interface", "name", "external-ids:sandbox="+sandboxID)
+	portList, err := ovsFind("interface", "name", fmt.Sprintf("external-ids:sandbox=%s", sandboxID))
 	if err != nil {
 		return err
 	}
@@ -25,7 +25,7 @@ func clearPodBandwidthForPorts(portList []string, sandboxID string) error {
 	}
 
 	// Now that the QoS is unused remove it
-	qosList, err := ovsFind("qos", "_uuid", "external-ids:sandbox="+sandboxID)
+	qosList, err := ovsFind("qos", "_uuid", fmt.Sprintf("external-ids:sandbox=%s", sandboxID))
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func setPodBandwidth(sandboxID, ifname string, ingressBPS, egressBPS int64) erro
 	// note pod ingress == OVS egress and vice versa
 
 	if ingressBPS > 0 {
-		qos, err := ovsCreate("qos", "type=linux-htb", fmt.Sprintf("other-config:max-rate=%d", ingressBPS), "external-ids=sandbox="+sandboxID)
+		qos, err := ovsCreate("qos", "type=linux-htb", fmt.Sprintf("other-config:max-rate=%d", ingressBPS), fmt.Sprintf("external-ids=sandbox=%s", sandboxID))
 		if err != nil {
 			return err
 		}

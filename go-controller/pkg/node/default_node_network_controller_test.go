@@ -309,6 +309,72 @@ var _ = Describe("Node", func() {
 			err := app.Run([]string{app.Name})
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("sets correct OVN external IDs with system-id", func() {
+			app.Action = func(ctx *cli.Context) error {
+				const (
+					nodeIP   string = "1.2.5.6"
+					nodeName string = "cannot.be.resolv.ed"
+					systemID string = "system1"
+					interval int    = 100000
+					ofintval int    = 180
+				)
+				node := kapi.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: nodeName,
+					},
+					Status: kapi.NodeStatus{
+						Addresses: []kapi.NodeAddress{
+							{
+								Type:    kapi.NodeExternalIP,
+								Address: nodeIP,
+							},
+						},
+					},
+				}
+
+				fexec := ovntest.NewFakeExec()
+				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
+					Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 set Open_vSwitch . "+
+						"external_ids:ovn-encap-type-%s=geneve "+
+						"external_ids:ovn-encap-ip-%s=%s "+
+						"external_ids:ovn-remote-probe-interval-%s=%d "+
+						"external_ids:ovn-openflow-probe-interval-%s=%d "+
+						"other_config:bundle-idle-timeout=%d "+
+						"external_ids:hostname=\"%s\" "+
+						"external_ids:ovn-is-interconn-%s=false "+
+						"external_ids:ovn-monitor-all-%s=true "+
+						"external_ids:ovn-ofctrl-wait-before-clear-%s=0 "+
+						"external_ids:ovn-enable-lflow-cache-%s=true "+
+						"external_ids:ovn-set-local-ip-%s=\"true\"",
+						systemID, systemID, nodeIP, systemID, interval, systemID, ofintval, ofintval, nodeName, systemID, systemID, systemID, systemID, systemID),
+				})
+				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
+					Cmd: "ovs-vsctl --timeout=15 -- clear bridge " + config.GetBridgeName() + " netflow" +
+						" -- " +
+						"clear bridge " + config.GetBridgeName() + " sflow" +
+						" -- " +
+						"clear bridge " + config.GetBridgeName() + " ipfix",
+				})
+				err := util.SetExec(fexec)
+				Expect(err).NotTo(HaveOccurred())
+
+				_, err = config.InitConfig(ctx, fexec, nil)
+				Expect(err).NotTo(HaveOccurred())
+				// Set the system-id for this test
+				config.Default.SystemID = systemID
+
+				err = setupOVNNode(&node)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(fexec.CalledMatchesExpected()).To(BeTrue(), fexec.ErrorDesc)
+				return nil
+			}
+
+			err := app.Run([]string{app.Name})
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 		It("sets non-default OVN encap port", func() {
 			app.Action = func(ctx *cli.Context) error {
 				const (
@@ -323,8 +389,8 @@ var _ = Describe("Node", func() {
 
 				fexec := ovntest.NewFakeExec()
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-					Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 " +
-						"--if-exists get Open_vSwitch . external_ids:system-id"),
+					Cmd: fmt.Sprintf("ovs-vsctl --timeout=15 "+
+						"--if-exists get Open_vSwitch . external_ids:system-id-%s", systemID),
 					Output: chassisUUID,
 				})
 				fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -474,7 +540,7 @@ var _ = Describe("Node", func() {
 						"--id=@ipfix create ipfix "+
 						"targets=[\"%s:%d\"] cache_active_timeout=60 sampling=400"+
 						" -- "+
-						"set bridge %s ipfix=@ipfix", ipfixIP, ipfixPort, config.GetBridgeName()),
+						"set bridge br-int ipfix=@ipfix", ipfixIP, ipfixPort),
 				})
 				err := util.SetExec(fexec)
 				Expect(err).NotTo(HaveOccurred())
@@ -549,7 +615,7 @@ var _ = Describe("Node", func() {
 						"--id=@ipfix create ipfix "+
 						"targets=[\"%s:%d\"] cache_active_timeout=123 cache_max_flows=456 sampling=789"+
 						" -- "+
-						"set bridge %s ipfix=@ipfix", ipfixIP, ipfixPort, config.GetBridgeName()),
+						"set bridge br-int ipfix=@ipfix", ipfixIP, ipfixPort),
 				})
 				err := util.SetExec(fexec)
 				Expect(err).NotTo(HaveOccurred())
@@ -625,7 +691,7 @@ var _ = Describe("Node", func() {
 						// verify that the 1.2.5.6 IP has been attached to the :8888 target below
 						`targets=["10.0.0.2:3030","1.2.5.6:8888","[2020:1111:f::1:933]:3333"] cache_active_timeout=60` +
 						" -- " +
-						"set bridge " + config.GetBridgeName() + " ipfix=@ipfix",
+						"set bridge br-int ipfix=@ipfix",
 				})
 				err := util.SetExec(fexec)
 				Expect(err).NotTo(HaveOccurred())

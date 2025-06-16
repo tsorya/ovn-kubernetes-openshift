@@ -108,15 +108,15 @@ func shareGatewayInterfaceTest(app *cli.App, testNS ns.NetNS,
 			Output: eth0MAC,
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:ovn-bridge-mappings",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:ovn-bridge-mappings-" + systemID,
 			Output: "",
 		})
 		fexec.AddFakeCmdsNoOutputNoError([]string{
-			"ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-bridge-mappings=" + types.PhysicalNetworkName + ":breth0",
+			"ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-bridge-mappings-" + systemID + "=" + types.PhysicalNetworkName + ":breth0",
 		})
 
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:system-id",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:system-id-" + systemID,
 			Output: systemID,
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -128,7 +128,7 @@ func shareGatewayInterfaceTest(app *cli.App, testNS ns.NetNS,
 			Output: fmt.Sprintf("%t", hwOffload),
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_node1-to-" + config.GetBridgeName() + " ofport",
+			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_node1-to-br-int ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -167,7 +167,7 @@ func shareGatewayInterfaceTest(app *cli.App, testNS ns.NetNS,
 		})
 		// nodePortWatcher()
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_" + nodeName + "-to-" + config.GetBridgeName() + " ofport",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_" + nodeName + "-to-br-int ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -181,6 +181,8 @@ func shareGatewayInterfaceTest(app *cli.App, testNS ns.NetNS,
 
 		_, err = config.InitConfig(ctx, fexec, nil)
 		Expect(err).NotTo(HaveOccurred())
+		// Set the system-id for this test
+		config.Default.SystemID = systemID
 
 		existingNode := v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
@@ -528,15 +530,15 @@ func shareGatewayInterfaceDPUTest(app *cli.App, testNS ns.NetNS,
 			Output: uplinkMAC,
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:ovn-bridge-mappings",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:ovn-bridge-mappings-" + systemID,
 			Output: "",
 		})
 		fexec.AddFakeCmdsNoOutputNoError([]string{
-			"ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-bridge-mappings=" + types.PhysicalNetworkName + ":" + brphys,
+			"ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-bridge-mappings-" + systemID + "=" + types.PhysicalNetworkName + ":" + brphys,
 		})
 		// GetNodeChassisID
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:system-id",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:system-id-" + systemID,
 			Output: systemID,
 		})
 		// DetectCheckPktLengthSupport
@@ -564,7 +566,7 @@ func shareGatewayInterfaceDPUTest(app *cli.App, testNS ns.NetNS,
 		})
 		// newGatewayOpenFlowManager
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-" + brphys + "_node1-to-" + config.GetBridgeName() + " ofport",
+			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-" + brphys + "_node1-to-br-int ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -604,7 +606,7 @@ func shareGatewayInterfaceDPUTest(app *cli.App, testNS ns.NetNS,
 		})
 		// nodePortWatcher()
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-" + brphys + "_" + nodeName + "-to-" + config.GetBridgeName() + " ofport",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-" + brphys + "_" + nodeName + "-to-br-int ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -617,6 +619,8 @@ func shareGatewayInterfaceDPUTest(app *cli.App, testNS ns.NetNS,
 
 		_, err = config.InitConfig(ctx, fexec, nil)
 		Expect(err).NotTo(HaveOccurred())
+		// Set the system-id for this test
+		config.Default.SystemID = systemID
 
 		nodeAddr := v1.NodeAddress{Type: v1.NodeInternalIP, Address: dpuIP}
 		existingNode := v1.Node{ObjectMeta: metav1.ObjectMeta{
@@ -811,8 +815,7 @@ func shareGatewayInterfaceDPUHostTest(app *cli.App, testNS ns.NetNS, uplinkName,
 		err = testNS.Do(func(ns.NetNS) error {
 			defer GinkgoRecover()
 
-			nodeAnnotator := kube.NewNodeAnnotator(&kube.Kube{KClient: kubeFakeClient}, nodeName)
-			err := nc.initGatewayDPUHost(net.ParseIP(hostIP), nodeAnnotator)
+			err := nc.initGatewayDPUHost(net.ParseIP(hostIP))
 			Expect(err).NotTo(HaveOccurred())
 
 			link, err := netlink.LinkByName(uplinkName)
@@ -968,15 +971,15 @@ OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0`
 			Output: eth0MAC,
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:ovn-bridge-mappings",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:ovn-bridge-mappings-" + systemID,
 			Output: "",
 		})
 		fexec.AddFakeCmdsNoOutputNoError([]string{
-			"ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-bridge-mappings=" + types.PhysicalNetworkName + ":breth0",
+			"ovs-vsctl --timeout=15 set Open_vSwitch . external_ids:ovn-bridge-mappings-" + systemID + "=" + types.PhysicalNetworkName + ":breth0",
 		})
 
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:system-id",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get Open_vSwitch . external_ids:system-id-" + systemID,
 			Output: systemID,
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -988,7 +991,7 @@ OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0`
 			Output: "false",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_node1-to-" + config.GetBridgeName() + " ofport",
+			Cmd:    "ovs-vsctl --timeout=15 get Interface patch-breth0_node1-to-br-int ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -1021,7 +1024,7 @@ OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0`
 			Output: ovsOFOutput,
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_" + nodeName + "-to-" + config.GetBridgeName() + " ofport",
+			Cmd:    "ovs-vsctl --timeout=15 --if-exists get interface patch-breth0_" + nodeName + "-to-br-int ofport",
 			Output: "5",
 		})
 		fexec.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -1046,6 +1049,8 @@ OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0`
 
 		_, err = config.InitConfig(ctx, fexec, nil)
 		Expect(err).NotTo(HaveOccurred())
+		// Set the system-id for this test
+		config.Default.SystemID = systemID
 
 		expectedAddr, err := netlink.ParseAddr(eth0CIDR)
 		Expect(err).NotTo(HaveOccurred())

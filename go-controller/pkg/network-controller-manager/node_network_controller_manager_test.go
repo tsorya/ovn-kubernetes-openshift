@@ -72,7 +72,7 @@ var _ = Describe("Healthcheck tests", func() {
 			It("removes stale ports from bridge", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
 					Cmd:    genListStalePortsCmd(),
-					Output: "foo\n\nbar\n\n" + types.K8sMgmtIntfName + "\n\n",
+					Output: "foo\n\nbar\n\n" + types.K8sMgmtIntfName("") + "\n\n",
 					Err:    nil,
 				})
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
@@ -89,7 +89,7 @@ var _ = Describe("Healthcheck tests", func() {
 			It("Does not remove any ports from bridge", func() {
 				execMock.AddFakeCmd(&ovntest.ExpectedCmd{
 					Cmd:    genListStalePortsCmd(),
-					Output: types.K8sMgmtIntfName + "\n\n",
+					Output: types.K8sMgmtIntfName("") + "\n\n",
 					Err:    nil,
 				})
 				checkForStaleOVSInternalPorts()

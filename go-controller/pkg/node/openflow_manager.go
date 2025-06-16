@@ -113,6 +113,7 @@ func (c *openflowManager) syncFlows() {
 		flows = append(flows, entry...)
 	}
 
+	klog.V(5).Infof("Syncing flows for bridge %s, flows: %s", c.defaultBridge.bridgeName, flows)
 	_, stderr, err := util.ReplaceOFFlows(c.defaultBridge.bridgeName, flows)
 	if err != nil {
 		klog.Errorf("Failed to add flows, error: %v, stderr, %s, flows: %s", err, stderr, c.flowCache)

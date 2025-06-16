@@ -216,15 +216,19 @@ func GetNodeAddresses(ipv4, ipv6 bool, nodes ...*v1.Node) (ipsv4 []net.IP, ipsv6
 
 // GetNodeChassisID returns the machine's OVN chassis ID
 func GetNodeChassisID() (string, error) {
+	if config.Default.SystemID != "" {
+		return config.Default.SystemID, nil
+	}
+
 	chassisID, stderr, err := RunOVSVsctl("--if-exists", "get",
-		"Open_vSwitch", ".", "external_ids:system-id")
+		"Open_vSwitch", ".", fmt.Sprintf("external_ids:system-id%s", config.Default.SystemIDSuffix()))
 	if err != nil {
-		klog.Errorf("No system-id configured in the local host, "+
-			"stderr: %q, error: %v", stderr, err)
+		klog.Errorf("No system-id%s configured in the local host, "+
+			"stderr: %q, error: %v", config.Default.SystemIDSuffix(), stderr, err)
 		return "", err
 	}
 	if chassisID == "" {
-		return "", fmt.Errorf("no system-id configured in the local host")
+		return "", fmt.Errorf("no system-id%s configured in the local host", config.Default.SystemIDSuffix())
 	}
 
 	return chassisID, nil
