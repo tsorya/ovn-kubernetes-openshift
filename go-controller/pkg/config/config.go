@@ -101,6 +101,7 @@ var (
 		RawClusterSubnets:            "10.128.0.0/14/23",
 		Zone:                         types.OvnDefaultZone,
 		RawUDNAllowedDefaultServices: "default/kubernetes,kube-system/kube-dns",
+		BridgeName:                   types.DefaultBridgeName,
 	}
 
 	// Logging holds logging-related parsed config file parameters and command-line overrides
@@ -335,6 +336,9 @@ type DefaultConfig struct {
 	// UDNAllowedDefaultServices holds a list of namespaced names of
 	// default cluster network services accessible from primary user-defined networks
 	UDNAllowedDefaultServices []string
+
+	// BridgeName is the name of the OVS integration bridge (default: br-int)
+	BridgeName string `gcfg:"bridge-name"`
 }
 
 // LoggingConfig holds logging-related parsed config file parameters and command-line overrides
@@ -2301,7 +2305,7 @@ func buildOvsPathsConfig(cli, file *config) error {
 	return nil
 }
 
-func buildDefaultConfig(cli, file *config) error {
+func buildDefaultConfig(cli, file *config, exec kexec.Interface) error {
 	if err := overrideFields(&Default, &file.Default, &savedDefault); err != nil {
 		return err
 	}
@@ -2321,6 +2325,10 @@ func buildDefaultConfig(cli, file *config) error {
 	if Default.Zone == "" {
 		Default.Zone = types.OvnDefaultZone
 	}
+
+	// Always set BridgeName from OVS, default is br-int
+	Default.BridgeName = getOvnBridgeName(exec)
+
 	return nil
 }
 
@@ -2502,7 +2510,7 @@ func initConfigWithPath(ctx *cli.Context, exec kexec.Interface, saPath string, d
 		})
 	}
 
-	if err = buildDefaultConfig(&cliConfig, &cfg); err != nil {
+	if err = buildDefaultConfig(&cliConfig, &cfg, exec); err != nil {
 		return "", err
 	}
 
@@ -2921,4 +2929,14 @@ func buildOvnKubeNodeConfig(cli, file *config) error {
 		return fmt.Errorf("ovnkube-node-mgmt-port-dp-resource-name must be provided on dpu-host mode if network segmentation is enabled")
 	}
 	return nil
+}
+
+// getOvnBridgeName queries OVS for external_ids:ovn-bridge and returns its value if set, otherwise returns the default bridge name (br-int).
+func getOvnBridgeName(exec kexec.Interface) string {
+	bridge := getOVSExternalID(exec, "ovn-bridge")
+	if bridge == "" {
+		return types.DefaultBridgeName
+	}
+
+	return bridge
 }

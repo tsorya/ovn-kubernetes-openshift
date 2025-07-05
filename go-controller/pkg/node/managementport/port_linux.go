@@ -170,13 +170,13 @@ func (mp *managementPortOVS) create() error {
 	// Create a OVS internal interface.
 	legacyMgmtIntfName := util.GetLegacyK8sMgmtIntfName(mp.cfg.nodeName)
 	stdout, stderr, err := util.RunOVSVsctl(
-		"--", "--if-exists", "del-port", "br-int", legacyMgmtIntfName,
-		"--", "--may-exist", "add-port", "br-int", types.K8sMgmtIntfName,
+		"--", "--if-exists", "del-port", util.GetOvnBridgeName(), legacyMgmtIntfName,
+		"--", "--may-exist", "add-port", util.GetOvnBridgeName(), types.K8sMgmtIntfName,
 		"--", "set", "interface", types.K8sMgmtIntfName, fmt.Sprintf("mac=\"%s\"", mp.cfg.mpMAC.String()),
 		"type=internal", "mtu_request="+fmt.Sprintf("%d", config.Default.MTU),
 		"external-ids:iface-id="+types.K8sPrefix+mp.cfg.nodeName)
 	if err != nil {
-		return fmt.Errorf("failed to add port to br-int: stdout %q, stderr %q, error: %w", stdout, stderr, err)
+		return fmt.Errorf("failed to add port to %s: stdout %q, stderr %q, error: %w", util.GetOvnBridgeName(), stdout, stderr, err)
 	}
 
 	return createPlatformManagementPort(types.K8sMgmtIntfName, mp.cfg, mp.routeManager)
