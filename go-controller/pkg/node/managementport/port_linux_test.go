@@ -201,11 +201,11 @@ func checkMgmtTestPortIpsAndRoutes(
 func testManagementPort(ctx *cli.Context, fexec *ovntest.FakeExec, testNS ns.NetNS,
 	configs []managementPortTestConfig, expectedLRPMAC string, legacy bool) {
 	const (
-		nodeName      string = "node1"
-		mgtPort       string = types.K8sMgmtIntfName
-		legacyMgtPort string = types.K8sPrefix + nodeName
-		mtu           string = "1400"
+		nodeName string = "node1"
+		mtu      string = "1400"
 	)
+	mgtPort := util.K8sMgmtIntfName()
+	legacyMgtPort := types.K8sPrefix + nodeName
 
 	mgmtPortMAC := util.IPAddrToHWAddr(net.ParseIP(configs[0].expectedManagementPortIP))
 	if legacy {
@@ -229,8 +229,8 @@ func testManagementPort(ctx *cli.Context, fexec *ovntest.FakeExec, testNS ns.Net
 		// We do not enable per-interface forwarding for IPv6
 		if cfg.family == netlink.FAMILY_V4 {
 			fexec.AddFakeCmd(&ovntest.ExpectedCmd{
-				Cmd:    "sysctl -w net/ipv4/conf/ovn-k8s-mp0/forwarding=1",
-				Output: "net.ipv4.conf.ovn-k8s-mp0.forwarding = 1",
+				Cmd:    fmt.Sprintf("sysctl -w net.ipv4.conf.%s.forwarding=1", mgtPort),
+				Output: fmt.Sprintf("net.ipv4.conf.%s.forwarding = 1", mgtPort),
 			})
 		}
 		isRoutingAdvertised = isRoutingAdvertised || cfg.isRoutingAdvertised

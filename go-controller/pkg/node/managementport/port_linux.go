@@ -93,7 +93,7 @@ func NewManagementPortController(
 		c.ports[netdevPort] = newManagementPortNetdev(netdevDevName, cfg, routeManager)
 	}
 	if hasRepresentor {
-		ifName := types.K8sMgmtIntfName
+		ifName := util.K8sMgmtIntfName()
 		if hasNetdev {
 			ifName += "_0"
 		}
@@ -112,9 +112,9 @@ func NewManagementPortController(
 // GetInterfaceName of the management port
 func (c *managementPortController) GetInterfaceName() string {
 	if c.ports[representorPort] != nil && c.ports[netdevPort] != nil {
-		return types.K8sMgmtIntfName + "_0"
+		return util.K8sMgmtIntfName() + "_0"
 	}
-	return types.K8sMgmtIntfName
+	return util.K8sMgmtIntfName()
 }
 
 func (c *managementPortController) start(stopChan <-chan struct{}) error {
@@ -161,7 +161,7 @@ func newManagementPortOVS(cfg *managementPortConfig, routeManager *routemanager.
 }
 
 func (mp *managementPortOVS) create() error {
-	for _, mgmtPortName := range []string{types.K8sMgmtIntfName, types.K8sMgmtIntfName + "_0"} {
+	for _, mgmtPortName := range []string{util.K8sMgmtIntfName(), util.K8sMgmtIntfName() + "_0"} {
 		if err := syncMgmtPortInterface(mgmtPortName, true); err != nil {
 			return fmt.Errorf("failed to sync management port: %v", err)
 		}
@@ -171,15 +171,15 @@ func (mp *managementPortOVS) create() error {
 	legacyMgmtIntfName := util.GetLegacyK8sMgmtIntfName(mp.cfg.nodeName)
 	stdout, stderr, err := util.RunOVSVsctl(
 		"--", "--if-exists", "del-port", util.GetOvnBridgeName(), legacyMgmtIntfName,
-		"--", "--may-exist", "add-port", util.GetOvnBridgeName(), types.K8sMgmtIntfName,
-		"--", "set", "interface", types.K8sMgmtIntfName, fmt.Sprintf("mac=\"%s\"", mp.cfg.mpMAC.String()),
+		"--", "--may-exist", "add-port", util.GetOvnBridgeName(), util.K8sMgmtIntfName(),
+		"--", "set", "interface", util.K8sMgmtIntfName(), fmt.Sprintf("mac=\"%s\"", mp.cfg.mpMAC.String()),
 		"type=internal", "mtu_request="+fmt.Sprintf("%d", config.Default.MTU),
 		"external-ids:iface-id="+types.K8sPrefix+mp.cfg.nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to add port to %s: stdout %q, stderr %q, error: %w", util.GetOvnBridgeName(), stdout, stderr, err)
 	}
 
-	return createPlatformManagementPort(types.K8sMgmtIntfName, mp.cfg, mp.routeManager)
+	return createPlatformManagementPort(util.K8sMgmtIntfName(), mp.cfg, mp.routeManager)
 }
 
 func (mp *managementPortOVS) reconcilePeriod() time.Duration {
@@ -187,7 +187,7 @@ func (mp *managementPortOVS) reconcilePeriod() time.Duration {
 }
 
 func (mp *managementPortOVS) doReconcile() error {
-	return createPlatformManagementPort(types.K8sMgmtIntfName, mp.cfg, mp.routeManager)
+	return createPlatformManagementPort(util.K8sMgmtIntfName(), mp.cfg, mp.routeManager)
 }
 
 func tearDownManagementPortConfig(link netlink.Link) error {
@@ -651,7 +651,7 @@ func DelLegacyMgtPortIptRules() {
 	if err != nil {
 		return
 	}
-	rule := []string{"-o", types.K8sMgmtIntfName, "-j", iptableMgmPortChain}
+	rule := []string{"-o", util.K8sMgmtIntfName(), "-j", iptableMgmPortChain}
 	_ = ipt.Delete("nat", "POSTROUTING", rule...)
 	_ = ipt6.Delete("nat", "POSTROUTING", rule...)
 	_ = ipt.ClearChain("nat", iptableMgmPortChain)
@@ -670,7 +670,7 @@ func initMgmPortRoutingRules(mgmtCfg *managementPortConfig) error {
 		gatewayIP := mgmtCfg.netInfo.GetNodeGatewayIP(hostSubnet).IP.String()
 		for _, svcCIDR := range config.Kubernetes.ServiceCIDRs {
 			if isIPv6 == utilnet.IsIPv6CIDR(svcCIDR) {
-				if stdout, stderr, err := util.RunIP("route", "replace", "table", ovnkubeSvcViaMgmPortRT, svcCIDR.String(), "via", gatewayIP, "dev", types.K8sMgmtIntfName); err != nil {
+				if stdout, stderr, err := util.RunIP("route", "replace", "table", ovnkubeSvcViaMgmPortRT, svcCIDR.String(), "via", gatewayIP, "dev", util.K8sMgmtIntfName()); err != nil {
 					return fmt.Errorf("error adding routing table entry into custom routing table: %s: stdout: %s, stderr: %s, err: %v", ovnkubeSvcViaMgmPortRT, stdout, stderr, err)
 				}
 				klog.V(5).Infof("Successfully added route into custom routing table: %s", ovnkubeSvcViaMgmPortRT)
