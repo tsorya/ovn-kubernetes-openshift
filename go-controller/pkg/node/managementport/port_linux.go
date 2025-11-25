@@ -258,15 +258,15 @@ func setupManagementPortIPFamilyConfig(link netlink.Link, mpcfg *managementPortC
 	// K8s Node IP. OVN Logical Router pipeline drops such packets since it expects
 	// source protocol address to be in the Logical Switch's subnet.
 	if exists, err = util.LinkNeighExists(link, cfg.gwIP, mpcfg.gwMAC); err == nil && !exists {
-		klog.Warningf("Missing arp entry for MAC/IP binding (%s/%s) on link %s", mpcfg.gwMAC.String(), cfg.gwIP, types.K8sMgmtIntfName)
+		klog.Warningf("Missing arp entry for MAC/IP binding (%s/%s) on link %s", mpcfg.gwMAC.String(), cfg.gwIP, util.K8sMgmtIntfName())
 		// LinkNeighExists checks if the mac also matches, but it is possible there is a stale entry
 		// still in the neighbor cache which would prevent add. Therefore execute a delete first if an IP entry exists.
 		if exists, err = util.LinkNeighIPExists(link, cfg.gwIP); err != nil {
-			klog.Warningf("Could not detect if stale IP neighbor entry exists for IP %s, on iface %s: %v", cfg.gwIP.String(), types.K8sMgmtIntfName, err)
+			klog.Warningf("Could not detect if stale IP neighbor entry exists for IP %s, on iface %s: %v", cfg.gwIP.String(), util.K8sMgmtIntfName(), err)
 		} else if exists {
-			klog.Warningf("Found stale neighbor entry IP binding (%s) on link %s", cfg.gwIP.String(), types.K8sMgmtIntfName)
+			klog.Warningf("Found stale neighbor entry IP binding (%s) on link %s", cfg.gwIP.String(), util.K8sMgmtIntfName())
 			if err = util.LinkNeighDel(link, cfg.gwIP); err != nil {
-				klog.Warningf("Could not remove remove stale IP neighbor entry for IP %s, on iface %s: %v", cfg.gwIP.String(), types.K8sMgmtIntfName, err)
+				klog.Warningf("Could not remove remove stale IP neighbor entry for IP %s, on iface %s: %v", cfg.gwIP.String(), util.K8sMgmtIntfName(), err)
 			}
 		}
 		err = util.LinkNeighAdd(link, cfg.gwIP, mpcfg.gwMAC)
@@ -282,7 +282,7 @@ func setupManagementPortIPFamilyConfig(link netlink.Link, mpcfg *managementPortC
 
 	// IPv6 forwarding is enabled globally
 	if protocol == iptables.ProtocolIPv4 {
-		err := util.SetforwardingModeForInterface(types.K8sMgmtIntfName)
+		err := util.SetforwardingModeForInterface(util.K8sMgmtIntfName())
 		if err != nil {
 			klog.Warning(err)
 		}
@@ -706,7 +706,7 @@ func initMgmPortRoutingRules(mgmtCfg *managementPortConfig) error {
 	// lastly update the reverse path filtering options for ovn-k8s-mp0 interface to avoid dropping return packets
 	// NOTE: v6 doesn't have rp_filter strict mode block
 	if config.IPv4Mode {
-		return util.SetRPFilterLooseModeForInterface(types.K8sMgmtIntfName)
+		return util.SetRPFilterLooseModeForInterface(util.K8sMgmtIntfName())
 	}
 	return nil
 }
