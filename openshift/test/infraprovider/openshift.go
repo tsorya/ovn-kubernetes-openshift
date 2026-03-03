@@ -38,6 +38,10 @@ func (m openshift) GetDefaultTimeoutContext() *framework.TimeoutContext {
 	return timeouts
 }
 
+func (o openshift) ListNetworks() ([]string, error) {
+       panic("not implemented")
+}
+
 func IsProvider(config *rest.Config) (bool, error) {
 	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
